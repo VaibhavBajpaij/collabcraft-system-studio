@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  studio-web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_WS_URL=ws://localhost:1234
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
