@@ -1,60 +1,71 @@
-# CollabCraft Studio — Real-Time Collaborative System Architecture Platform
+# CollabCraft Studio — Real-Time Collaborative System Architecture CAD
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15_(App_Router)-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript 5](https://img.shields.io/badge/TypeScript-5.6-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![React Flow](https://img.shields.io/badge/React_Flow-@xyflow/react_13-FF0072?logo=reactflow)](https://reactflow.dev/)
 [![Yjs CRDT](https://img.shields.io/badge/CRDT-Yjs_Conflict--Free-orange.svg)](https://yjs.dev/)
-[![React 19](https://img.shields.io/badge/React-19_RC-61DAFB?logo=react)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+[![Local-First](https://img.shields.io/badge/Storage-IndexedDB_Zero_Loss-purple.svg)](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An enterprise-grade, browser-based **real-time collaborative system design whiteboard** built with **Next.js 15**, **TypeScript**, and **Yjs CRDTs (Conflict-free Replicated Data Types)**. 
+An enterprise-grade, browser-based **real-time collaborative system design CAD platform** built with **Next.js 15**, **TypeScript**, **@xyflow/react (React Flow)**, and **Yjs CRDTs (Conflict-free Replicated Data Types)**.
 
-Allows distributed engineering teams to design microservices, event-driven pipelines, and cloud architectures simultaneously with zero edit collisions, multi-user cursor presence, and an **AI Architecture Copilot** that converts natural language requirements into interactive system diagrams.
+Allows distributed engineering teams to design microservices, event-driven pipelines, and cloud architectures simultaneously with zero edit collisions, multi-user cursor presence, local-first offline persistence, and an **AI Architecture Copilot** that converts natural language requirements into interactive, connected Directed Acyclic Graphs (DAGs).
 
 ---
 
 ## 🏛️ System Architecture
 
 ```
-                  [Distributed Engineering Team]
-                 Client A                  Client B
-                    │                         │
-                    ▼                         ▼
-             ┌─────────────┐           ┌─────────────┐
-             │ Next.js 15  │           │ Next.js 15  │
-             │ Local Y.Doc │           │ Local Y.Doc │
-             └──────┬──────┘           └──────┬──────┘
-                    │                         │
-                    └───────────┬─────────────┘
-                                │ (Binary Yjs Updates)
-                                ▼
-                   ┌────────────────────────┐
-                   │  y-websocket Server    │ (Node.js / Netty)
-                   └────────────┬───────────┘
-                                │
-                    ┌───────────┴───────────┐
-                    ▼                       ▼
-          ┌───────────────────┐   ┌───────────────────┐
-          │  Redis Pub/Sub    │   │ AI Architecture   │
-          │  Cluster State    │   │ Copilot Engine    │
-          └───────────────────┘   └───────────────────┘
+                          [Distributed Engineering Team]
+                       Client A (Chrome)          Client B (Edge)
+                              │                          │
+                              ▼                          ▼
+                       ┌─────────────┐            ┌─────────────┐
+                       │  React Flow │            │  React Flow │
+                       │ Canvas View │            │ Canvas View │
+                       └──────┬──────┘            └──────┬──────┘
+                              │                          │
+                        (doc.transact)             (doc.transact)
+                              │                          │
+                              ▼                          ▼
+                       ┌─────────────┐            ┌─────────────┐
+                       │ Local Y.Doc │            │ Local Y.Doc │
+                       │ (CRDT Map)  │            │ (CRDT Map)  │
+                       └──────┬──────┘            └──────┬──────┘
+                              │                          │
+                      ┌───────┴────────┐         ┌───────┴────────┐
+                      ▼                ▼         ▼                ▼
+              ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+              │  y-indexeddb  │ │  y-webrtc     │ │  y-websocket  │ │ Y.UndoManager │
+              │ (Zero Data    │ │ (Broadcast-   │ │ (Central      │ │ (Ctrl+Z / Y   │
+              │  Loss Cache)  │ │  Channel P2P) │ │  Relay WSS)   │ │  Multi-User)  │
+              └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
 ```
 
 ---
 
-## ⚡ Core Engineering & Distributed Highlights
+## ⚡ Core Engineering & Distributed Systems Highlights
 
-### 1. Conflict-Free Replicated Data Types (CRDTs)
-* Uses `Y.Map` and `Y.Doc` state vectors to guarantee **mathematical convergence**: concurrent edits (e.g. moving components, modifying labels) resolve deterministically across all connected clients without requiring operational transforms (OT) or centralized database locks.
+### 1. Interactive Node & Edge Graph CAD (`@xyflow/react`)
+* Built on `@xyflow/react 13`, featuring custom hardware-accelerated nodes with bidirectional connection handles (Input, Output, Top, Bottom).
+* Full support for orthogonal, smoothstep, and bezier edge routing with live visual data-flow animation.
+* Includes Minimap, viewport pan & zoom controls, multi-node selection, and interactive deletion (`Backspace`/`Delete`).
 
-### 2. Multi-User Presence & Ephemeral State
-* Propagates real-time cursor positions (`x, y`), client names, and active node selections with sub-20ms latency. Stale client heartbeats (>30s) are automatically collected and pruned.
+### 2. Conflict-Free Replicated Data Types (CRDTs)
+* Uses `Y.Map<ArchitectureNode>` and `Y.Map<ArchitectureEdge>` to guarantee **mathematical convergence**: concurrent edits (moving components, modifying labels, connecting edges) resolve deterministically across all connected clients without requiring operational transforms (OT) or centralized database locks.
 
-### 3. AI Architecture Copilot Engine
-* Parses system engineering specifications (e.g., *"Distributed banking payment ledger with Kafka and Redis idempotency"*) and dynamically emits structured, positioned topological graphs (`CanvasShape[]`) directly into the shared CRDT document.
+### 3. Local-First Zero-Data-Loss Persistence (`y-indexeddb`)
+* All node positions, component metadata, and edge connections are instantly persisted into browser **IndexedDB**. Refreshing the browser or reopening after an unexpected shutdown immediately restores 100% of the canvas state before network reconnection.
 
-### 4. Zero-Flicker Canvas Rendering
-* Built with hardware-accelerated CSS transforms (`translate3d`) and decoupled rendering passes to maintain 60 FPS during high-frequency collaborator movements.
+### 4. Dual-Transport Synchronization
+* Combines **WebRTC** (`y-webrtc`) for 0ms latency intra-browser `BroadcastChannel` and P2P inter-browser data channels with a resilient **WebSocket** fallback relay (`y-websocket`) to ensure continuous connectivity across strict NATs and firewalls.
+
+### 5. AI Copilot DAG Generator
+* Parses system engineering specifications (e.g., *"Fintech payment gateway with Kafka, Redis idempotency, and PostgreSQL ledger"*) and dynamically emits structured, positioned, connected **Directed Acyclic Graphs (DAGs)** directly into the shared CRDT document.
+
+### 6. Infrastructure-as-Code (IaC) One-Click Export
+* **Docker Compose YAML**: Generates runnable multi-container configurations from the active canvas topology.
+* **JSON Topology Spec**: Exports the full node-edge schema for integration with CI/CD and deployment pipelines.
 
 ---
 
@@ -64,23 +75,18 @@ Allows distributed engineering teams to design microservices, event-driven pipel
 ```bash
 git clone https://github.com/VaibhavBajpaij/collabcraft-system-studio.git
 cd collabcraft-system-studio
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### 2. Run Local Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in multiple browser tabs or incognito windows to test live multi-cursor synchronization.
+Open [http://localhost:3000](http://localhost:3000) in multiple browser tabs or incognito windows to test live multi-cursor and node/edge synchronization.
 
-### 3. Run Automated Tests
+### 3. Build for Production
 ```bash
-npm run test
-```
-
-### 4. Run via Docker Compose
-```bash
-docker-compose up -d
+npm run build
 ```
 
 ---

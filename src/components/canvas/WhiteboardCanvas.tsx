@@ -1,9 +1,38 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CanvasShape, UserPresence, ShapeType } from '@/lib/types/canvas';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  MiniMap,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+  BackgroundVariant
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+import { ArchitectureNode, ArchitectureEdge, ShapeType, UserPresence } from '@/lib/types/canvas';
 import { CollabDoc } from '@/lib/crdt/yjsDoc';
-import { Layers, Database, Cpu, HardDrive, Network, Sparkles, Plus, Trash2, Download, Wifi, WifiOff } from 'lucide-react';
+import { ArchitectureNodeComponent } from './ArchitectureNodeComponent';
+import { exportArchitectureToDockerCompose } from '@/lib/copilot/architectureGenerator';
+import {
+  Layers,
+  Database,
+  Cpu,
+  HardDrive,
+  Network,
+  ShieldCheck,
+  Sparkles,
+  Undo2,
+  Redo2,
+  Download,
+  FileCode,
+  CheckCircle2,
+  FileJson
+} from 'lucide-react';
 
 interface Props {
   roomId: string;
@@ -15,6 +44,7 @@ const PALETTE_COLORS: Record<ShapeType, string> = {
   queue: '#F59E0B',
   cache: '#EF4444',
   gateway: '#3B82F6',
+  auth: '#06B6D4',
   arrow: '#94A3B8',
   note: '#FCD34D'
 };
@@ -22,40 +52,142 @@ const PALETTE_COLORS: Record<ShapeType, string> = {
 const USER_COLORS = ['#38BDF8', '#F472B6', '#34D399', '#FBBF24', '#A78BFA', '#FB7185'];
 
 export default function WhiteboardCanvas({ roomId }: Props) {
-  const [shapes, setShapes] = useState<CanvasShape[]>([]);
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<ArchitectureNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<ArchitectureEdge>([]);
   const [presences, setPresences] = useState<UserPresence[]>([]);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [copilotPrompt, setCopilotPrompt] = useState('');
   const [loadingCopilot, setLoadingCopilot] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const [persistedInIdb, setPersistedInIdb] = useState(false);
 
   const collabRef = useRef<CollabDoc | null>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
   const userId = useRef('eng-' + Math.random().toString(36).substring(2, 6));
   const userColor = useRef(USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)]);
 
-  // Dragging state
-  const isDraggingShape = useRef(false);
-  const draggedShapeId = useRef<string | null>(null);
-  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const nodeTypes = useMemo(() => ({
+    architectureNode: ArchitectureNodeComponent as any
+  }), []);
+
+  const seedDefaultArchitecture = useCallback((doc: CollabDoc) => {
+    const defaultNodes: ArchitectureNode[] = [
+      {
+        id: 'node-gateway',
+        type: 'architectureNode',
+        position: { x: 80, y: 160 },
+        data: {
+          label: 'Edge API Gateway',
+          type: 'gateway',
+          description: 'TLS Termination, Token-Bucket Rate Limiter & JWT routing',
+          color: '#3B82F6',
+          technology: 'Spring Cloud Gateway / Netty',
+          protocol: 'HTTPS / HTTP/2'
+        }
+      },
+      {
+        id: 'node-service',
+        type: 'architectureNode',
+        position: { x: 380, y: 160 },
+        data: {
+          label: 'Payment Orchestrator',
+          type: 'service',
+          description: 'Saga Coordinator & Idempotent Transaction Execution',
+          color: '#10B981',
+          technology: 'Spring Boot 3 / Java 21',
+          protocol: 'gRPC'
+        }
+      },
+      {
+        id: 'node-cache',
+        type: 'architectureNode',
+        position: { x: 680, y: 80 },
+        data: {
+          label: 'Redis Distributed Cache',
+          type: 'cache',
+          description: 'Sub-millisecond read-through cache & distributed locks',
+          color: '#EF4444',
+          technology: 'Redis 7.2 Cluster',
+          protocol: 'RESP3'
+        }
+      },
+      {
+        id: 'node-queue',
+        type: 'architectureNode',
+        position: { x: 680, y: 260 },
+        data: {
+          label: 'Kafka Event Bus',
+          type: 'queue',
+          description: 'Partitioned payment-events log & Dead Letter Queue',
+          color: '#F59E0B',
+          technology: 'Apache Kafka 3.6',
+          protocol: 'Binary Wire'
+        }
+      },
+      {
+        id: 'node-db',
+        type: 'architectureNode',
+        position: { x: 980, y: 200 },
+        data: {
+          label: 'PostgreSQL Ledger DB',
+          type: 'database',
+          description: 'ACID Balance Store, Read Replicas & WAL Replication',
+          color: '#8B5CF6',
+          technology: 'PostgreSQL 16 Multi-AZ',
+          protocol: 'TCP / TLS'
+        }
+      }
+    ];
+
+    const defaultEdges: ArchitectureEdge[] = [
+      { id: 'e-gw-srv', source: 'node-gateway', target: 'node-service', animated: true, style: { stroke: '#38BDF8', strokeWidth: 2 } },
+      { id: 'e-srv-cache', source: 'node-service', target: 'node-cache', style: { stroke: '#EF4444', strokeWidth: 2, strokeDasharray: '5,5' } },
+      { id: 'e-srv-queue', source: 'node-service', target: 'node-queue', animated: true, style: { stroke: '#F59E0B', strokeWidth: 2 } },
+      { id: 'e-queue-db', source: 'node-queue', target: 'node-db', animated: true, style: { stroke: '#8B5CF6', strokeWidth: 2 } }
+    ];
+
+    doc.updateNodes(defaultNodes);
+    doc.updateEdges(defaultEdges);
+  }, []);
 
   useEffect(() => {
     const doc = new CollabDoc(roomId);
     collabRef.current = doc;
 
-    // 1. Observe Shape Map changes from CRDT (local or remote)
-    const updateShapesFromDoc = () => {
-      setShapes(doc.getShapes());
+    // 1. Observe Yjs Nodes & Edges Map changes
+    const syncFromDoc = () => {
+      const docNodes = doc.getNodes();
+      const docEdges = doc.getEdges();
+      if (docNodes.length > 0) {
+        setNodes(docNodes);
+      }
+      if (docEdges.length > 0) {
+        setEdges(docEdges);
+      }
     };
-    doc.shapesMap.observe(updateShapesFromDoc);
 
-    // 2. Observe Network Connection Status
+    doc.nodesMap.observe(syncFromDoc);
+    doc.edgesMap.observe(syncFromDoc);
+
+    // 2. Local-First IndexedDB synchronization signal
+    doc.onSynced(() => {
+      setPersistedInIdb(true);
+      const storedNodes = doc.getNodes();
+      const storedEdges = doc.getEdges();
+      if (storedNodes.length > 0) {
+        setNodes(storedNodes);
+        setEdges(storedEdges);
+      } else {
+        seedDefaultArchitecture(doc);
+      }
+    });
+
+    // 3. Network Connection Status
     const unsubscribeStatus = doc.onStatusChange((status) => {
       setSyncStatus(status);
     });
 
-    // 3. Setup Awareness (Live Cursor Sync across browser tabs & network)
+    // 4. Awareness Protocol (Live user cursors across tabs & peers)
     const awareness = doc.getAwareness();
     if (awareness) {
       awareness.setLocalStateField('user', {
@@ -65,7 +197,7 @@ export default function WhiteboardCanvas({ roomId }: Props) {
         cursor: null
       });
 
-      const handleAwarenessChange = () => {
+      awareness.on('change', () => {
         const states = awareness.getStates();
         const active: UserPresence[] = [];
         states.forEach((state: any, clientID: number) => {
@@ -80,99 +212,124 @@ export default function WhiteboardCanvas({ roomId }: Props) {
           }
         });
         setPresences(active);
-      };
-
-      awareness.on('change', handleAwarenessChange);
+      });
     }
 
-    // 4. Seed initial default high-throughput architecture if canvas is empty
+    // Safety timeout in case IndexedDB was empty on initial boot
     setTimeout(() => {
-      if (doc.getShapes().length === 0) {
-        doc.setShape({ id: 'gw-1', type: 'gateway', x: 80, y: 180, width: 150, height: 80, label: 'API Gateway', description: 'Stateless Reverse Proxy & Rate Limiter', color: '#3B82F6' });
-        doc.setShape({ id: 'srv-1', type: 'service', x: 300, y: 180, width: 170, height: 80, label: 'Payment Orchestrator', description: 'Spring Boot 3 / Saga Coordinator', color: '#10B981' });
-        doc.setShape({ id: 'q-1', type: 'queue', x: 540, y: 180, width: 150, height: 80, label: 'Kafka Event Bus', description: 'payment-events Partitioned Topic', color: '#F59E0B' });
-        doc.setShape({ id: 'db-1', type: 'database', x: 780, y: 180, width: 160, height: 80, label: 'PostgreSQL Ledger', description: 'ACID Transactional Balance Store', color: '#8B5CF6' });
+      if (doc.getNodes().length === 0) {
+        seedDefaultArchitecture(doc);
       }
-      setShapes(doc.getShapes());
-    }, 400);
+    }, 600);
 
     return () => {
       unsubscribeStatus();
       doc.destroy();
     };
-  }, [roomId]);
+  }, [roomId, seedDefaultArchitecture, setNodes, setEdges]);
 
-  // Handle cursor movement propagation
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!canvasRef.current || !collabRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Handle Shape Dragging
-    if (isDraggingShape.current && draggedShapeId.current) {
-      const newX = Math.max(10, x - dragOffset.current.x);
-      const newY = Math.max(10, y - dragOffset.current.y);
-      collabRef.current.updateShapePosition(draggedShapeId.current, newX, newY);
-    }
-
-    // Broadcast cursor position via CRDT awareness
-    const awareness = collabRef.current.getAwareness();
-    if (awareness) {
-      awareness.setLocalStateField('user', {
-        id: userId.current,
-        name: 'Engineer (' + userId.current.substring(4) + ')',
-        color: userColor.current,
-        cursor: { x, y }
-      });
-    }
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    isDraggingShape.current = false;
-    draggedShapeId.current = null;
-  }, []);
-
-  const startDragShape = (e: React.MouseEvent, shape: CanvasShape) => {
-    e.stopPropagation();
-    setSelectedShapeId(shape.id);
-    isDraggingShape.current = true;
-    draggedShapeId.current = shape.id;
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const currentMouseX = e.clientX - rect.left;
-      const currentMouseY = e.clientY - rect.top;
-      dragOffset.current = {
-        x: currentMouseX - shape.x,
-        y: currentMouseY - shape.y
-      };
-    }
-  };
-
-  const addShape = (type: ShapeType) => {
-    if (!collabRef.current) return;
-    const id = 'shape-' + Math.random().toString(36).substring(2, 8);
-    const newShape: CanvasShape = {
-      id,
-      type,
-      x: 320 + Math.random() * 100,
-      y: 200 + Math.random() * 80,
-      width: type === 'service' ? 170 : 150,
-      height: 80,
-      label: type.charAt(0).toUpperCase() + type.slice(1) + ' Node',
-      description: 'Distributed Microservice Node',
-      color: PALETTE_COLORS[type] || '#10B981'
+  // Connect new edge handler
+  const onConnect = useCallback((connection: Connection) => {
+    const newEdge: ArchitectureEdge = {
+      id: `e-${connection.source}-${connection.target}-${Date.now()}`,
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: connection.sourceHandle,
+      targetHandle: connection.targetHandle,
+      animated: true,
+      style: { stroke: '#38BDF8', strokeWidth: 2 }
     };
-    collabRef.current.setShape(newShape);
-    setSelectedShapeId(id);
+
+    setEdges((eds) => {
+      const nextEdges = addEdge(newEdge, eds);
+      collabRef.current?.setEdge(newEdge);
+      return nextEdges;
+    });
+  }, [setEdges]);
+
+  // Sync node movement on drag stop to CRDT
+  const onNodeDragStop = useCallback((_: any, node: any) => {
+    if (collabRef.current) {
+      collabRef.current.setNode(node as ArchitectureNode);
+    }
+  }, []);
+
+  // Delete node sync
+  const onNodesDelete = useCallback((deletedNodes: any[]) => {
+    deletedNodes.forEach((n) => {
+      collabRef.current?.removeNode(n.id);
+    });
+  }, []);
+
+  // Delete edge sync
+  const onEdgesDelete = useCallback((deletedEdges: any[]) => {
+    deletedEdges.forEach((e) => {
+      collabRef.current?.removeEdge(e.id);
+    });
+  }, []);
+
+  // Add individual component node
+  const addNode = (type: ShapeType) => {
+    if (!collabRef.current) return;
+    const id = 'node-' + Math.random().toString(36).substring(2, 7);
+    const labels: Record<ShapeType, string> = {
+      gateway: 'API Gateway',
+      service: 'Domain Microservice',
+      queue: 'Event Stream Broker',
+      cache: 'Distributed Cache',
+      database: 'Transactional Database',
+      auth: 'Auth & Identity Service',
+      arrow: 'Connector',
+      note: 'Sticky Note'
+    };
+
+    const techDefaults: Record<ShapeType, string> = {
+      gateway: 'Netty / Envoy',
+      service: 'Spring Boot 3 / Go',
+      queue: 'Kafka / RabbitMQ',
+      cache: 'Redis 7.2',
+      database: 'PostgreSQL 16',
+      auth: 'OAuth2 / Keycloak',
+      arrow: '',
+      note: ''
+    };
+
+    const newNode: ArchitectureNode = {
+      id,
+      type: 'architectureNode',
+      position: { x: 300 + Math.random() * 80, y: 150 + Math.random() * 80 },
+      data: {
+        label: labels[type] || 'System Node',
+        type,
+        description: `High-concurrency ${type} tier component`,
+        color: PALETTE_COLORS[type] || '#10B981',
+        technology: techDefaults[type] || '',
+        protocol: type === 'gateway' ? 'HTTP/2' : 'gRPC'
+      }
+    };
+
+    collabRef.current.setNode(newNode);
+    setNodes((nds) => [...nds, newNode]);
   };
 
-  const deleteSelected = () => {
-    if (!selectedShapeId || !collabRef.current) return;
-    collabRef.current.removeShape(selectedShapeId);
-    setSelectedShapeId(null);
+  // Undo / Redo
+  const handleUndo = () => {
+    collabRef.current?.undo();
+    if (collabRef.current) {
+      setNodes(collabRef.current.getNodes());
+      setEdges(collabRef.current.getEdges());
+    }
   };
 
+  const handleRedo = () => {
+    collabRef.current?.redo();
+    if (collabRef.current) {
+      setNodes(collabRef.current.getNodes());
+      setEdges(collabRef.current.getEdges());
+    }
+  };
+
+  // AI Copilot architecture generator
   const handleCopilotSubmit = async () => {
     if (!copilotPrompt.trim()) return;
     setLoadingCopilot(true);
@@ -183,10 +340,11 @@ export default function WhiteboardCanvas({ roomId }: Props) {
         body: JSON.stringify({ prompt: copilotPrompt })
       });
       const data = await res.json();
-      if (data.shapes && collabRef.current) {
-        data.shapes.forEach((s: CanvasShape) => {
-          collabRef.current?.setShape(s);
-        });
+      if (data.nodes && data.edges && collabRef.current) {
+        collabRef.current.updateNodes(data.nodes);
+        collabRef.current.updateEdges(data.edges);
+        setNodes(data.nodes);
+        setEdges(data.edges);
       }
       setIsCopilotOpen(false);
       setCopilotPrompt('');
@@ -197,13 +355,36 @@ export default function WhiteboardCanvas({ roomId }: Props) {
     }
   };
 
+  // Export Docker Compose
+  const downloadDockerCompose = () => {
+    const yaml = exportArchitectureToDockerCompose(nodes);
+    const blob = new Blob([yaml], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `docker-compose-${roomId}.yml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsExportOpen(false);
+  };
+
+  // Export JSON Topology
+  const downloadJSON = () => {
+    const topology = JSON.stringify({ roomId, exportedAt: new Date().toISOString(), nodes, edges }, null, 2);
+    const blob = new Blob([topology], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `architecture-topology-${roomId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsExportOpen(false);
+  };
+
   return (
-    <div
-      onMouseUp={handleMouseUp}
-      className="relative w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden"
-    >
+    <div className="relative w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden">
       {/* Top Navbar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 flex items-center justify-between z-20">
+      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-6 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-3">
           <Layers className="w-6 h-6 text-sky-400" />
           <span className="font-bold text-lg text-slate-100 tracking-wide">
@@ -216,88 +397,160 @@ export default function WhiteboardCanvas({ roomId }: Props) {
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             CRDT Active &bull; WebRTC + Yjs WebSocket
           </span>
+          <span className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-950 text-sky-400 border border-sky-800">
+            <CheckCircle2 className="w-3 h-3 text-sky-400" />
+            Local-First IndexedDB
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* Undo / Redo */}
+          <div className="flex items-center border border-slate-800 rounded-lg bg-slate-900 overflow-hidden">
+            <button
+              onClick={handleUndo}
+              title="Undo (Ctrl+Z)"
+              className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <div className="w-[1px] h-4 bg-slate-800" />
+            <button
+              onClick={handleRedo}
+              title="Redo (Ctrl+Y)"
+              className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsExportOpen(!isExportOpen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition"
+            >
+              <Download className="w-3.5 h-3.5 text-sky-400" /> Export Spec
+            </button>
+            {isExportOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-50">
+                <button
+                  onClick={downloadDockerCompose}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-800 rounded-lg transition"
+                >
+                  <FileCode className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <div className="font-semibold text-slate-200">Docker Compose YAML</div>
+                    <div className="text-[10px] text-slate-400">Runnable multi-container spec</div>
+                  </div>
+                </button>
+                <button
+                  onClick={downloadJSON}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-800 rounded-lg transition"
+                >
+                  <FileJson className="w-4 h-4 text-purple-400" />
+                  <div>
+                    <div className="font-semibold text-slate-200">Architecture Topology</div>
+                    <div className="text-[10px] text-slate-400">Export node/edge JSON graph</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* AI Copilot Button */}
           <button
             onClick={() => setIsCopilotOpen(true)}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-sky-500 text-white font-medium text-xs shadow-lg shadow-sky-500/20 hover:opacity-95 transition"
           >
             <Sparkles className="w-4 h-4" /> AI Copilot Architect
           </button>
-          {selectedShapeId && (
-            <button
-              onClick={deleteSelected}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs hover:bg-rose-500/30 transition"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Delete Node
-            </button>
-          )}
         </div>
       </header>
 
-      {/* Floating Canvas Palette */}
-      <div className="absolute left-6 top-20 z-20 flex flex-col gap-2 p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur">
-        <button onClick={() => addShape('service')} title="Add Microservice Node" className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-emerald-400 transition">
+      {/* Floating Canvas Component Palette */}
+      <div className="absolute left-6 top-20 z-20 flex flex-col gap-1.5 p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xl backdrop-blur">
+        <button
+          onClick={() => addNode('gateway')}
+          title="Add API Gateway (Netty/Envoy)"
+          className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-sky-400 transition"
+        >
+          <Network className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => addNode('auth')}
+          title="Add Auth & Identity Service (OAuth2/OIDC)"
+          className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-cyan-400 transition"
+        >
+          <ShieldCheck className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => addNode('service')}
+          title="Add Microservice Node (Spring Boot/Go)"
+          className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-emerald-400 transition"
+        >
           <Cpu className="w-5 h-5" />
         </button>
-        <button onClick={() => addShape('database')} title="Add Database Node" className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-purple-400 transition">
-          <Database className="w-5 h-5" />
-        </button>
-        <button onClick={() => addShape('queue')} title="Add Message Queue (Kafka/RabbitMQ)" className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-amber-400 transition">
+        <button
+          onClick={() => addNode('queue')}
+          title="Add Message Broker (Kafka/RabbitMQ)"
+          className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-amber-400 transition"
+        >
           <Layers className="w-5 h-5" />
         </button>
-        <button onClick={() => addShape('cache')} title="Add Redis Distributed Cache" className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-rose-400 transition">
+        <button
+          onClick={() => addNode('cache')}
+          title="Add Redis Distributed Cache"
+          className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-rose-400 transition"
+        >
           <HardDrive className="w-5 h-5" />
         </button>
-        <button onClick={() => addShape('gateway')} title="Add API Gateway / Reverse Proxy" className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-sky-400 transition">
-          <Network className="w-5 h-5" />
+        <button
+          onClick={() => addNode('database')}
+          title="Add Relational Database (PostgreSQL Multi-AZ)"
+          className="p-2.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-purple-400 transition"
+        >
+          <Database className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Interactive Whiteboard Canvas */}
-      <div
-        ref={canvasRef}
-        onMouseMove={handleMouseMove}
-        onClick={() => setSelectedShapeId(null)}
-        className="relative flex-1 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] cursor-crosshair overflow-hidden"
-      >
-        {/* Render Canvas Shapes */}
-        {shapes.map((s) => {
-          const isSelected = s.id === selectedShapeId;
-          return (
-            <div
-              key={s.id}
-              onMouseDown={(e) => startDragShape(e, s)}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedShapeId(s.id);
-              }}
-              style={{
-                transform: `translate(${s.x}px, ${s.y}px)`,
-                width: `${s.width}px`,
-                height: `${s.height}px`,
-                borderColor: s.color,
-              }}
-              className={`absolute p-3 rounded-xl border-2 bg-slate-900/95 shadow-2xl backdrop-blur select-none cursor-move flex flex-col justify-between transition-shadow ${
-                isSelected ? 'ring-2 ring-sky-400 shadow-sky-500/25 scale-[1.02]' : 'hover:border-slate-400'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-xs tracking-wide text-slate-100 truncate pr-1">{s.label}</span>
-                  <span className="text-[9px] uppercase font-mono px-1 rounded bg-slate-800 text-slate-400 shrink-0">{s.type}</span>
-                </div>
-                {s.description && (
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">{s.description}</p>
-                )}
-              </div>
-              <div className="h-1 rounded-full w-full" style={{ backgroundColor: s.color }}></div>
-            </div>
-          );
-        })}
+      {/* React Flow Real-Time Architecture Canvas */}
+      <div className="flex-1 w-full h-full relative">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          onNodesDelete={onNodesDelete}
+          onEdgesDelete={onEdgesDelete}
+          nodeTypes={nodeTypes as any}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.2}
+          maxZoom={2}
+          defaultEdgeOptions={{
+            animated: true,
+            style: { stroke: '#38BDF8', strokeWidth: 2 }
+          }}
+          className="bg-slate-950"
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            color="#334155"
+            gap={24}
+            size={1.5}
+            className="opacity-50"
+          />
+          <Controls className="!bg-slate-900 !border !border-slate-800 !rounded-xl !shadow-xl !fill-slate-300" />
+          <MiniMap
+            nodeColor={(node: any) => node.data?.color || '#3B82F6'}
+            maskColor="rgba(15, 23, 42, 0.85)"
+            className="!bg-slate-900 !border !border-slate-800 !rounded-xl !shadow-xl overflow-hidden"
+          />
+        </ReactFlow>
 
-        {/* Live Collaborator Cursors synced via CRDT Awareness */}
+        {/* Live Collaborator Cursors from CRDT Awareness */}
         {presences.map((p) => {
           if (!p.cursor) return null;
           return (
@@ -327,18 +580,18 @@ export default function WhiteboardCanvas({ roomId }: Props) {
       {isCopilotOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-5 h-5 text-sky-400" />
-              <h3 className="font-bold text-slate-100 text-base">Generate System Architecture</h3>
+              <h3 className="font-bold text-slate-100 text-base">Generate System Topology DAG</h3>
             </div>
             <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Describe any distributed architecture in natural language (e.g., <em>&ldquo;High-throughput fintech payment gateway with Kafka, Redis idempotency, and PostgreSQL ledger&rdquo;</em> or <em>&ldquo;Enterprise Multi-Agent RAG cluster with vector caching&rdquo;</em>).
+              Describe your distributed system requirements in plain language. The AI Copilot dynamically computes a multi-tier Directed Acyclic Graph (DAG) with connected edges, protocol channels, and resilience tiers.
             </p>
             <textarea
               rows={3}
               value={copilotPrompt}
               onChange={(e) => setCopilotPrompt(e.target.value)}
-              placeholder="e.g. Design a fault-tolerant payment transaction system with Kafka, Redis idempotency, and PostgreSQL ledger..."
+              placeholder="e.g., Ultra-low latency payment gateway with Kafka partition logs, Redis caching, and PostgreSQL ledger..."
               className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 mb-4"
             />
             <div className="flex items-center justify-end gap-2">
@@ -353,7 +606,7 @@ export default function WhiteboardCanvas({ roomId }: Props) {
                 onClick={handleCopilotSubmit}
                 className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-medium text-xs transition disabled:opacity-50"
               >
-                {loadingCopilot ? 'Generating Architecture...' : 'Generate & Place on Canvas'}
+                {loadingCopilot ? 'Generating DAG...' : 'Generate & Place on Canvas'}
               </button>
             </div>
           </div>

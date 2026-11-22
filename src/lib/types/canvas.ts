@@ -1,17 +1,19 @@
-export type ShapeType = 'service' | 'database' | 'queue' | 'gateway' | 'cache' | 'arrow' | 'note';
+import { Node, Edge } from '@xyflow/react';
 
-export interface CanvasShape {
-  id: string;
-  type: ShapeType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+export type ShapeType = 'service' | 'database' | 'queue' | 'gateway' | 'cache' | 'arrow' | 'note' | 'auth';
+
+export interface ArchitectureNodeData {
   label: string;
-  description?: string;
+  type: ShapeType;
+  description: string;
   color: string;
-  targetId?: string; // For arrows/connectors
+  protocol?: string;
+  technology?: string;
+  [key: string]: unknown;
 }
+
+export type ArchitectureNode = Node<ArchitectureNodeData>;
+export type ArchitectureEdge = Edge;
 
 export interface UserPresence {
   id: string;
@@ -28,5 +30,6 @@ export interface ArchitectureTemplateRequest {
 export interface GeneratedArchitecture {
   title: string;
   description: string;
-  shapes: CanvasShape[];
+  nodes: ArchitectureNode[];
+  edges: ArchitectureEdge[];
 }
