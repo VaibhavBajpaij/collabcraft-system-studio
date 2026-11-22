@@ -398,11 +398,11 @@ export default function WhiteboardCanvas({ roomId }: Props) {
   return (
     <div className="relative w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden">
       {/* Top Navbar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-3 sm:px-6 flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-2 sm:gap-3 truncate">
-          <Layers className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400 shrink-0" />
-          <span className="font-bold text-base sm:text-lg text-slate-100 tracking-wide shrink-0">
-            CollabCraft <span className="text-sky-400 text-xs sm:text-sm font-semibold">Studio</span>
+      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-2.5 sm:px-6 flex items-center justify-between z-20 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400 shrink-0" />
+          <span className="font-bold text-xs sm:text-base text-slate-100 tracking-tight sm:tracking-wide shrink-0">
+            CollabCraft <span className="text-sky-400 font-semibold">Studio</span>
           </span>
           <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700 truncate max-w-[140px]">
             Room: {roomId}
