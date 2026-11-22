@@ -269,6 +269,13 @@ export default function WhiteboardCanvas({ roomId }: Props) {
     });
   }, [setEdges]);
 
+  // Delete edge sync
+  const onEdgesDelete = useCallback((deletedEdges: any[]) => {
+    deletedEdges.forEach((e) => {
+      collabRef.current?.removeEdge(e.id);
+    });
+  }, []);
+
   // Add individual component node with smart staggered coordinates (prevents stacking occlusion)
   const addNode = (type: ShapeType) => {
     if (!collabRef.current) return;
