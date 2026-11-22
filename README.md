@@ -1,92 +1,137 @@
-# CollabCraft Studio — Real-Time Collaborative System Architecture CAD
+# CollabCraft Studio & MCP Server — Real-Time Collaborative Architecture CAD for AI Agents
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15_(App_Router)-black?logo=next.js)](https://nextjs.org/)
-[![TypeScript 5](https://img.shields.io/badge/TypeScript-5.6-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP-Protocol_1.0-blueviolet?logo=anthropic)](https://modelcontextprotocol.io/)
 [![React Flow](https://img.shields.io/badge/React_Flow-@xyflow/react_13-FF0072?logo=reactflow)](https://reactflow.dev/)
 [![Yjs CRDT](https://img.shields.io/badge/CRDT-Yjs_Conflict--Free-orange.svg)](https://yjs.dev/)
 [![Local-First](https://img.shields.io/badge/Storage-IndexedDB_Zero_Loss-purple.svg)](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
+[![TypeScript 5](https://img.shields.io/badge/TypeScript-5.6-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An enterprise-grade, browser-based **real-time collaborative system design CAD platform** built with **Next.js 15**, **TypeScript**, **@xyflow/react (React Flow)**, and **Yjs CRDTs (Conflict-free Replicated Data Types)**.
+An open-source, enterprise-grade **System Architecture CAD Platform & Model Context Protocol (MCP) Server** built with **Next.js 15**, **React Flow (`@xyflow/react`)**, and **Yjs CRDTs**.
 
-Allows distributed engineering teams to design microservices, event-driven pipelines, and cloud architectures simultaneously with zero edit collisions, multi-user cursor presence, local-first offline persistence, and an **AI Architecture Copilot** that converts natural language requirements into interactive, connected Directed Acyclic Graphs (DAGs).
+Bridges the spatial gap in AI coding agents (**Claude Code, Cursor, Windsurf, and Claude Desktop**), allowing agents to inspect repositories, generate interactive system topology graphs with animated data-flow edges, detect architecture drift, and export directly to runnable Docker Compose YAML.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ Architecture Overview
 
 ```
-                          [Distributed Engineering Team]
-                       Client A (Chrome)          Client B (Edge)
-                              │                          │
-                              ▼                          ▼
-                       ┌─────────────┐            ┌─────────────┐
-                       │  React Flow │            │  React Flow │
-                       │ Canvas View │            │ Canvas View │
-                       └──────┬──────┘            └──────┬──────┘
-                              │                          │
-                        (doc.transact)             (doc.transact)
-                              │                          │
-                              ▼                          ▼
-                       ┌─────────────┐            ┌─────────────┐
-                       │ Local Y.Doc │            │ Local Y.Doc │
-                       │ (CRDT Map)  │            │ (CRDT Map)  │
-                       └──────┬──────┘            └──────┬──────┘
-                              │                          │
-                      ┌───────┴────────┐         ┌───────┴────────┐
-                      ▼                ▼         ▼                ▼
-              ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
-              │  y-indexeddb  │ │  y-webrtc     │ │  y-websocket  │ │ Y.UndoManager │
-              │ (Zero Data    │ │ (Broadcast-   │ │ (Central      │ │ (Ctrl+Z / Y   │
-              │  Loss Cache)  │ │  Channel P2P) │ │  Relay WSS)   │ │  Multi-User)  │
-              └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
+ ┌────────────────────────────────────────────────────────┐
+ │   AI Coding Agents (Claude Code, Cursor, Windsurf)     │
+ │   "Claude, design our payment system & show me the map"│
+ └──────────────────────────┬─────────────────────────────┘
+                            │ (Model Context Protocol / Stdio)
+                            ▼
+ ┌────────────────────────────────────────────────────────┐
+ │              collabcraft-mcp CLI Server                │
+ │   • render_architecture_dag                            │
+ │   • inspect_repository_architecture                    │
+ │   • detect_architecture_drift                          │
+ │   • export_infrastructure_spec                         │
+ └──────────────────────────┬─────────────────────────────┘
+                            │ (Binary Yjs WebSocket Relay)
+                            ▼
+ ┌────────────────────────────────────────────────────────┐
+ │       CollabCraft Web Visualizer (React Flow 13)       │
+ │   • Opens instantly at https://collabcraft-.../?room=X │
+ │   • Bidirectional connection handles (N, S, E, W)      │
+ │   • Animated bezier & smoothstep edge routing          │
+ │   • Local-First IndexedDB Zero-Data-Loss cache         │
+ │   • Real-time human-in-the-loop multi-cursor sync      │
+ └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ⚡ Core Engineering & Distributed Systems Highlights
+## ⚡ Quickstart: Add to Claude Desktop or Cursor (MCP)
 
-### 1. Interactive Node & Edge Graph CAD (`@xyflow/react`)
-* Built on `@xyflow/react 13`, featuring custom hardware-accelerated nodes with bidirectional connection handles (Input, Output, Top, Bottom).
-* Full support for orthogonal, smoothstep, and bezier edge routing with live visual data-flow animation.
-* Includes Minimap, viewport pan & zoom controls, multi-node selection, and interactive deletion (`Backspace`/`Delete`).
+### Option A: Claude Desktop Configuration
+Add to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "collabcraft": {
+      "command": "node",
+      "args": ["<PATH_TO_REPO>/bin/collabcraft-mcp.js"]
+    }
+  }
+}
+```
 
-### 2. Conflict-Free Replicated Data Types (CRDTs)
-* Uses `Y.Map<ArchitectureNode>` and `Y.Map<ArchitectureEdge>` to guarantee **mathematical convergence**: concurrent edits (moving components, modifying labels, connecting edges) resolve deterministically across all connected clients without requiring operational transforms (OT) or centralized database locks.
-
-### 3. Local-First Zero-Data-Loss Persistence (`y-indexeddb`)
-* All node positions, component metadata, and edge connections are instantly persisted into browser **IndexedDB**. Refreshing the browser or reopening after an unexpected shutdown immediately restores 100% of the canvas state before network reconnection.
-
-### 4. Dual-Transport Synchronization
-* Combines **WebRTC** (`y-webrtc`) for 0ms latency intra-browser `BroadcastChannel` and P2P inter-browser data channels with a resilient **WebSocket** fallback relay (`y-websocket`) to ensure continuous connectivity across strict NATs and firewalls.
-
-### 5. AI Copilot DAG Generator
-* Parses system engineering specifications (e.g., *"Fintech payment gateway with Kafka, Redis idempotency, and PostgreSQL ledger"*) and dynamically emits structured, positioned, connected **Directed Acyclic Graphs (DAGs)** directly into the shared CRDT document.
-
-### 6. Infrastructure-as-Code (IaC) One-Click Export
-* **Docker Compose YAML**: Generates runnable multi-container configurations from the active canvas topology.
-* **JSON Topology Spec**: Exports the full node-edge schema for integration with CI/CD and deployment pipelines.
+### Option B: Cursor IDE Configuration
+Add to your `.cursor/mcp.json` or Global Cursor Settings:
+```json
+{
+  "mcpServers": {
+    "collabcraft": {
+      "command": "node",
+      "args": ["<PATH_TO_REPO>/bin/collabcraft-mcp.js"]
+    }
+  }
+}
+```
 
 ---
 
-## 🚀 Quickstart & Local Setup
+## 🛠️ The 4 Core MCP Tools
 
-### 1. Clone Repository & Install Dependencies
+### 1. `render_architecture_dag`
+* **Prompt**: *"Design an ultra-low latency fintech payment gateway with Kafka, Redis caching, and PostgreSQL ledger."*
+* **Behavior**: Replaces static, broken Mermaid text with an **interactive React Flow CAD canvas**. Generates 4-tier topological nodes with multi-directional handles and animated data-flow edges, streaming the result live to CollabCraft Studio and opening it in the browser.
+
+### 2. `inspect_repository_architecture`
+* **Prompt**: *"Map out the services and databases used in this repository."*
+* **Behavior**: Scans `docker-compose.yml`, `package.json`, `pom.xml`, `requirements.txt`, `prisma/schema.prisma`, and Kubernetes configs. Reverse-engineers the codebase into a visual topology DAG with zero manual effort.
+
+### 3. `detect_architecture_drift`
+* **Prompt**: *"Audit this codebase for architectural drift and security anti-patterns."*
+* **Behavior**: Detects missing rate-limiting layers on public APIs, unrouted microservices, missing caching tiers, and direct synchronous couplings.
+
+### 4. `export_infrastructure_spec`
+* **Prompt**: *"Export this architecture as a Docker Compose specification."*
+* **Behavior**: Compiles the visual canvas topology directly into production-ready `docker-compose.yml` with container networking, volumes, and health checks.
+
+---
+
+## ⚡ Web Platform Highlights (`@xyflow/react` + Yjs)
+
+1. **Hardware-Accelerated React Flow Canvas**:
+   * Custom hardware-accelerated nodes with 4 directional handles (Input, Output, Top, Bottom) for arbitrary multi-point wiring.
+   * Includes Minimap, zoom controls, fit-view, and multi-node selection.
+2. **Conflict-Free Replicated Data Types (CRDTs)**:
+   * Uses `Y.Doc`, `Y.Map<ArchitectureNode>`, and `Y.Map<ArchitectureEdge>` for guaranteed convergence across distributed browsers with zero merge conflicts.
+3. **Local-First Zero-Data-Loss Persistence (`y-indexeddb`)**:
+   * State is continuously committed into browser IndexedDB. Hard page reloads restore 100% of user nodes and custom edge layouts.
+4. **Dual-Transport Synchronization**:
+   * Uses WebRTC P2P (`BroadcastChannel`) for 0ms local tab sync with WebSocket fallback relay (`y-websocket`).
+
+---
+
+## 🚀 Local Development
+
+### 1. Install Dependencies
 ```bash
 git clone https://github.com/VaibhavBajpaij/collabcraft-system-studio.git
 cd collabcraft-system-studio
 npm install --legacy-peer-deps
 ```
 
-### 2. Run Local Development Server
+### 2. Run Web Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in multiple browser tabs or incognito windows to test live multi-cursor and node/edge synchronization.
+Open [http://localhost:3000](http://localhost:3000) to view the live studio.
 
-### 3. Build for Production
+### 3. Build Web App & MCP Binary Bundle
 ```bash
 npm run build
+```
+Builds `dist/mcp.js` (standalone Node.js bundle) and the Next.js 15 production artifacts.
+
+### 4. Test MCP Server Locally
+```bash
+node bin/collabcraft-mcp.js
 ```
 
 ---
