@@ -254,24 +254,31 @@ export default function WhiteboardCanvas({ roomId }: Props) {
     }
   }, []);
 
-  // Delete node sync
+  // Delete node sync & immediately clean up incident edges to eliminate dangling ghost lines
   const onNodesDelete = useCallback((deletedNodes: any[]) => {
+    const deletedIds = new Set(deletedNodes.map((n) => n.id));
     deletedNodes.forEach((n) => {
       collabRef.current?.removeNode(n.id);
     });
-  }, []);
-
-  // Delete edge sync
-  const onEdgesDelete = useCallback((deletedEdges: any[]) => {
-    deletedEdges.forEach((e) => {
-      collabRef.current?.removeEdge(e.id);
+    setEdges((eds) => {
+      const remainingEdges = eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target));
+      if (collabRef.current) {
+        collabRef.current.updateEdges(remainingEdges);
+      }
+      return remainingEdges;
     });
-  }, []);
+  }, [setEdges]);
 
-  // Add individual component node
+  // Add individual component node with smart staggered coordinates (prevents stacking occlusion)
   const addNode = (type: ShapeType) => {
     if (!collabRef.current) return;
     const id = 'node-' + Math.random().toString(36).substring(2, 7);
+    const existingCount = nodes.length;
+    const col = existingCount % 4;
+    const row = Math.floor(existingCount / 4);
+    const posX = 100 + col * 270;
+    const posY = 100 + row * 170;
+
     const labels: Record<ShapeType, string> = {
       gateway: 'API Gateway',
       service: 'Domain Microservice',
@@ -297,7 +304,7 @@ export default function WhiteboardCanvas({ roomId }: Props) {
     const newNode: ArchitectureNode = {
       id,
       type: 'architectureNode',
-      position: { x: 300 + Math.random() * 80, y: 150 + Math.random() * 80 },
+      position: { x: posX, y: posY },
       data: {
         label: labels[type] || 'System Node',
         type,
@@ -384,28 +391,28 @@ export default function WhiteboardCanvas({ roomId }: Props) {
   return (
     <div className="relative w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden">
       {/* Top Navbar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-6 flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-3">
-          <Layers className="w-6 h-6 text-sky-400" />
-          <span className="font-bold text-lg text-slate-100 tracking-wide">
-            CollabCraft <span className="text-sky-400 text-sm font-semibold">Studio</span>
+      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-3 sm:px-6 flex items-center justify-between z-20 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 truncate">
+          <Layers className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400 shrink-0" />
+          <span className="font-bold text-base sm:text-lg text-slate-100 tracking-wide shrink-0">
+            CollabCraft <span className="text-sky-400 text-xs sm:text-sm font-semibold">Studio</span>
           </span>
-          <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-400 border border-slate-700">
+          <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700 truncate max-w-[140px]">
             Room: {roomId}
           </span>
-          <span className="px-2.5 py-0.5 rounded-full text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5 shadow-sm shadow-emerald-500/20">
+          <span className="hidden lg:flex px-2.5 py-0.5 rounded-full text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 items-center gap-1.5 shadow-sm shadow-emerald-500/20 shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             CRDT Active &bull; WebRTC + Yjs WebSocket
           </span>
-          <span className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-950 text-sky-400 border border-sky-800">
+          <span className="hidden xl:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-950 text-sky-400 border border-sky-800 shrink-0">
             <CheckCircle2 className="w-3 h-3 text-sky-400" />
             Local-First IndexedDB
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Undo / Redo */}
-          <div className="flex items-center border border-slate-800 rounded-lg bg-slate-900 overflow-hidden">
+          <div className="hidden sm:flex items-center border border-slate-800 rounded-lg bg-slate-900 overflow-hidden">
             <button
               onClick={handleUndo}
               title="Undo (Ctrl+Z)"
@@ -427,9 +434,10 @@ export default function WhiteboardCanvas({ roomId }: Props) {
           <div className="relative">
             <button
               onClick={() => setIsExportOpen(!isExportOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition"
             >
-              <Download className="w-3.5 h-3.5 text-sky-400" /> Export Spec
+              <Download className="w-3.5 h-3.5 text-sky-400" />
+              <span className="hidden sm:inline">Export Spec</span>
             </button>
             {isExportOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-50">
