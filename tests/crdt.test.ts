@@ -2,51 +2,57 @@ import { describe, it, expect } from 'vitest';
 import { CollabDoc } from '../src/lib/crdt/yjsDoc';
 
 describe('CollabDoc CRDT Operations', () => {
-  it('should initialize an empty document and accept shape mutations', () => {
+  it('should initialize an empty document and accept node mutations', () => {
     const doc = new CollabDoc('test-room');
-    expect(doc.getShapes().length).toBe(0);
+    expect(doc.getNodes().length).toBe(0);
 
-    doc.setShape({
-      id: 'shape-1',
-      type: 'service',
-      x: 100,
-      y: 100,
-      width: 150,
-      height: 75,
-      label: 'Auth Service',
-      color: '#10B981'
+    doc.setNode({
+      id: 'node-1',
+      type: 'default',
+      position: { x: 100, y: 100 },
+      data: {
+        label: 'Auth Service',
+        type: 'service',
+        description: 'Authentication microservice',
+        color: '#10B981'
+      }
     });
 
-    const shapes = doc.getShapes();
-    expect(shapes.length).toBe(1);
-    expect(shapes[0].label).toBe('Auth Service');
+    const nodes = doc.getNodes();
+    expect(nodes.length).toBe(1);
+    expect(nodes[0].data.label).toBe('Auth Service');
   });
 
-  it('should remove shapes by ID idempotently', () => {
+  it('should remove nodes by ID idempotently', () => {
     const doc = new CollabDoc('test-room');
-    doc.setShape({
-      id: 'shape-2',
-      type: 'database',
-      x: 200,
-      y: 200,
-      width: 150,
-      height: 75,
-      label: 'PostgreSQL',
-      color: '#8B5CF6'
+    doc.setNode({
+      id: 'node-2',
+      type: 'default',
+      position: { x: 200, y: 200 },
+      data: {
+        label: 'PostgreSQL',
+        type: 'database',
+        description: 'Relational DB',
+        color: '#8B5CF6'
+      }
     });
 
-    expect(doc.getShapes().length).toBe(1);
-    doc.removeShape('shape-2');
-    expect(doc.getShapes().length).toBe(0);
+    expect(doc.getNodes().length).toBe(1);
+    doc.removeNode('node-2');
+    expect(doc.getNodes().length).toBe(0);
   });
 
-  it('should track user presence and cursor coordinates', () => {
+  it('should support edge operations and topology tracking', () => {
     const doc = new CollabDoc('test-room');
-    doc.updateCursor('user-101', 'Alice', '#38BDF8', 350, 420);
+    doc.setEdge({
+      id: 'e1-2',
+      source: 'node-1',
+      target: 'node-2',
+      animated: true
+    });
 
-    const presences = doc.getActivePresences();
-    expect(presences.length).toBe(1);
-    expect(presences[0].cursor).toEqual({ x: 350, y: 420 });
-    expect(presences[0].name).toBe('Alice');
+    const edges = doc.getEdges();
+    expect(edges.length).toBe(1);
+    expect(edges[0].source).toBe('node-1');
   });
 });
