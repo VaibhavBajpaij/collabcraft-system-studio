@@ -11757,7 +11757,11 @@ var require_ws = __commonJS({
 // src/mcp/server.ts
 var server_exports = {};
 __export(server_exports, {
+  detectArchitectureDrift: () => detectArchitectureDrift,
   inspectCodebase: () => inspectCodebase,
+  launchBrowser: () => launchBrowser,
+  run: () => run,
+  server: () => server,
   syncGraphToYjs: () => syncGraphToYjs
 });
 module.exports = __toCommonJS(server_exports);
@@ -29894,22 +29898,33 @@ var WebsocketProvider = class extends ObservableV2 {
 // src/mcp/server.ts
 var fs6 = __toESM(require("fs"));
 var path3 = __toESM(require("path"));
+var crypto = __toESM(require("crypto"));
 var import_child_process = require("child_process");
 
 // src/lib/copilot/architectureGenerator.ts
+var PALETTE_COLORS = {
+  service: "#10B981",
+  database: "#8B5CF6",
+  queue: "#F59E0B",
+  cache: "#EF4444",
+  gateway: "#3B82F6",
+  auth: "#06B6D4",
+  arrow: "#94A3B8",
+  note: "#FCD34D"
+};
 function generateArchitectureFromPrompt(prompt) {
   const p = prompt.toLowerCase().trim();
-  const rawId = () => "node-" + Math.random().toString(36).substring(2, 7);
   const components = [];
-  if (p.includes("kong") || p.includes("nginx") || p.includes("ingress") || p.includes("gateway") || p.includes("proxy") || p.includes("envoy")) {
+  const hasWord = (pattern) => pattern.test(p);
+  if (hasWord(/\b(kong|nginx|ingress|gateway|reverse[- ]proxy|envoy|traefik)\b/i)) {
     components.push({
       id: "gw-ingress",
       type: "gateway",
-      label: p.includes("kong") ? "Kong Gateway" : p.includes("nginx") ? "NGINX Reverse Proxy" : "Edge API Gateway",
+      label: hasWord(/\bkong\b/i) ? "Kong Gateway" : hasWord(/\bnginx\b/i) ? "NGINX Reverse Proxy" : "Edge API Gateway",
       description: "TLS Termination, JWT validation & Dynamic Rate Limiting",
-      color: "#3B82F6",
+      color: PALETTE_COLORS.gateway,
       protocol: "HTTPS / HTTP/2",
-      technology: "Spring Cloud Gateway / Netty",
+      technology: hasWord(/\bnginx\b/i) ? "NGINX Alpine" : "Spring Cloud Gateway / Netty",
       tier: 1
     });
   } else {
@@ -29918,67 +29933,67 @@ function generateArchitectureFromPrompt(prompt) {
       type: "gateway",
       label: "Edge API Gateway",
       description: "TLS Termination, JWT validation & Token-Bucket Rate Limiter",
-      color: "#3B82F6",
+      color: PALETTE_COLORS.gateway,
       protocol: "HTTPS / HTTP/2",
       technology: "Spring Cloud Gateway / Netty",
       tier: 1
     });
   }
-  if (p.includes("auth") || p.includes("jwt") || p.includes("oauth") || p.includes("user") || p.includes("security")) {
+  if (hasWord(/\b(auth|jwt|oauth|oauth2|oidc|identity|rbac|security)\b/i)) {
     components.push({
       id: "srv-auth",
       type: "auth",
       label: "Auth & Identity Service",
       description: "OAuth2 / OIDC token issuance & RBAC policies",
-      color: "#06B6D4",
+      color: PALETTE_COLORS.auth,
       protocol: "gRPC / Mutual TLS",
       technology: "Go / Keycloak",
       tier: 2
     });
   }
-  if (p.includes("payment") || p.includes("fintech") || p.includes("banking") || p.includes("checkout") || p.includes("transaction")) {
+  if (hasWord(/\b(payments?|fintech|banking|checkout|transactions?|ledger)\b/i)) {
     components.push({
       id: "srv-payment",
       type: "service",
       label: "Payment Orchestrator",
       description: "Saga Coordinator & Idempotent Processing",
-      color: "#10B981",
+      color: PALETTE_COLORS.service,
       protocol: "gRPC / Event-Driven",
       technology: "Spring Boot 3 / Java 21",
       tier: 2
     });
   }
-  if (p.includes("order") || p.includes("e-commerce") || p.includes("shop") || p.includes("cart") || p.includes("inventory")) {
+  if (hasWord(/\b(orders?|e-?commerce|shops?|carts?|inventory)\b/i)) {
     components.push({
       id: "srv-order",
       type: "service",
       label: "Order Management Service",
       description: "Inventory reservations & state machine transitions",
-      color: "#10B981",
+      color: PALETTE_COLORS.service,
       protocol: "gRPC / REST",
       technology: "Node.js / TypeScript",
       tier: 2
     });
   }
-  if (p.includes("ai") || p.includes("rag") || p.includes("llm") || p.includes("agent") || p.includes("langgraph")) {
+  if (hasWord(/\b(ai|rag|llm|agents?|langgraph|langchain)\b/i)) {
     components.push({
       id: "srv-ai-agent",
       type: "service",
-      label: "LangGraph Reasoning Agent",
+      label: "AI Reasoning Agent",
       description: "Multi-agent supervisor DAG & dynamic tool dispatch",
-      color: "#06B6D4",
+      color: PALETTE_COLORS.auth,
       protocol: "HTTP/2 Streaming / SSE",
       technology: "Python / FastAPI / LangGraph",
       tier: 2
     });
   }
-  if (p.includes("notification") || p.includes("email") || p.includes("sms") || p.includes("webhook")) {
+  if (hasWord(/\b(notifications?|emails?|sms|webhooks?|alerts?)\b/i)) {
     components.push({
       id: "srv-notification",
       type: "service",
       label: "Notification Dispatcher",
       description: "High-throughput push, email & webhook broadcasting",
-      color: "#10B981",
+      color: PALETTE_COLORS.service,
       protocol: "AMQP Consumer",
       technology: "Go / Rust",
       tier: 2
@@ -29990,67 +30005,67 @@ function generateArchitectureFromPrompt(prompt) {
       type: "service",
       label: "Core Domain Microservice",
       description: "High-concurrency business logic and domain entities",
-      color: "#10B981",
+      color: PALETTE_COLORS.service,
       protocol: "gRPC / REST",
       technology: "Java 21 / Spring Boot 3",
       tier: 2
     });
   }
-  if (p.includes("kafka") || p.includes("event") || p.includes("stream") || p.includes("queue") || p.includes("rabbitmq") || p.includes("pubsub")) {
-    const queueLabel = p.includes("rabbitmq") ? "RabbitMQ Exchange" : "Apache Kafka Broker";
+  if (hasWord(/\b(kafka|events?|streams?|queues?|rabbitmq|pubsub|amqp)\b/i)) {
+    const queueLabel = hasWord(/\brabbitmq\b/i) ? "RabbitMQ Exchange" : "Apache Kafka Broker";
     components.push({
       id: "q-broker",
       type: "queue",
       label: queueLabel,
       description: "Partitioned event log & Dead Letter Queue (DLQ)",
-      color: "#F59E0B",
+      color: PALETTE_COLORS.queue,
       protocol: "TCP / Binary Wire Protocol",
-      technology: p.includes("rabbitmq") ? "RabbitMQ 3.12" : "Apache Kafka 3.6 (KRaft)",
+      technology: hasWord(/\brabbitmq\b/i) ? "RabbitMQ 3.12" : "Apache Kafka 3.7 (KRaft)",
       tier: 3
     });
   }
-  if (p.includes("redis") || p.includes("cache") || p.includes("latency") || p.includes("session") || p.includes("memcached")) {
+  if (hasWord(/\b(redis|cache|caching|latency|sessions?|memcached)\b/i)) {
     components.push({
       id: "cache-redis",
       type: "cache",
       label: "Redis Distributed Cache",
       description: "Sub-millisecond read-through cache & Redlock locks",
-      color: "#EF4444",
+      color: PALETTE_COLORS.cache,
       protocol: "RESP3 Protocol",
       technology: "Redis 7.2 Cluster",
       tier: 3
     });
   }
-  if (p.includes("vector") || p.includes("qdrant") || p.includes("pinecone") || p.includes("chroma") || p.includes("embedding") || p.includes("ai")) {
+  if (hasWord(/\b(vector|qdrant|pinecone|chroma|embeddings?)\b/i)) {
     components.push({
       id: "db-vector",
       type: "database",
       label: "Qdrant Vector DB",
       description: "HNSW vector indexing & Cosine distance metrics",
-      color: "#8B5CF6",
+      color: PALETTE_COLORS.database,
       protocol: "gRPC / REST",
       technology: "Qdrant Cluster (v1.8)",
       tier: 4
     });
   }
-  if (p.includes("postgres") || p.includes("sql") || p.includes("acid") || p.includes("relational") || p.includes("payment") || p.includes("banking") || p.includes("order")) {
+  if (hasWord(/\b(postgres|postgresql|sql|acid|relational|payment|banking|ledger)\b/i)) {
     components.push({
       id: "db-postgres",
       type: "database",
       label: "PostgreSQL Primary DB",
       description: "ACID transactional store with Read Replicas & WAL CDC",
-      color: "#8B5CF6",
+      color: PALETTE_COLORS.database,
       protocol: "PostgreSQL Wire v3",
       technology: "PostgreSQL 16 Multi-AZ",
       tier: 4
     });
-  } else if (p.includes("mongo") || p.includes("nosql") || p.includes("dynamo")) {
+  } else if (hasWord(/\b(mongo|mongodb|nosql|dynamo|dynamodb)\b/i)) {
     components.push({
       id: "db-nosql",
       type: "database",
       label: "Distributed NoSQL Store",
       description: "High-throughput partition-tolerant document storage",
-      color: "#8B5CF6",
+      color: PALETTE_COLORS.database,
       protocol: "MongoDB Wire Protocol",
       technology: "MongoDB 7 Sharded Cluster",
       tier: 4
@@ -30061,13 +30076,13 @@ function generateArchitectureFromPrompt(prompt) {
       type: "database",
       label: "Distributed Database Cluster",
       description: "Multi-AZ replication with automated failover and backups",
-      color: "#8B5CF6",
+      color: PALETTE_COLORS.database,
       protocol: "TCP / TLS",
       technology: "PostgreSQL 16 Enterprise",
       tier: 4
     });
   }
-  const tierX = { 1: 60, 2: 340, 3: 640, 4: 940 };
+  const tierX = { 1: 60, 2: 360, 3: 680, 4: 980 };
   const tierCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
   const nodes = components.map((comp) => {
     const tier = comp.tier;
@@ -30145,59 +30160,360 @@ function generateArchitectureFromPrompt(prompt) {
   const capitalizedTitle = titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
   return {
     title: `${capitalizedTitle} \u2014 Distributed System Topology`,
-    description: `Auto-generated multi-tier DAG with edge routing, message-bus ingestion, low-latency caching, and ACID persistence.`,
+    description: `Multi-tier DAG with edge routing, message-bus ingestion, low-latency caching, and ACID persistence.`,
+    nodes,
+    edges
+  };
+}
+function buildArchitectureFromDiscoveredComponents(components, repoName) {
+  if (components.length === 0) {
+    return {
+      title: `${repoName} \u2014 No Services Detected`,
+      description: `No containerized services, databases, or API entrypoints were detected in ${repoName}.`,
+      nodes: [],
+      edges: []
+    };
+  }
+  const tierMapping = {
+    gateway: 1,
+    service: 2,
+    auth: 2,
+    queue: 3,
+    cache: 3,
+    database: 4,
+    arrow: 2,
+    note: 2
+  };
+  const tierX = { 1: 60, 2: 360, 3: 680, 4: 980 };
+  const tierCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  const nodes = components.map((comp, idx) => {
+    const tier = tierMapping[comp.type] || 2;
+    const indexInTier = tierCounts[tier]++;
+    const x = tierX[tier];
+    const y = 80 + indexInTier * 160;
+    const id2 = `node-${comp.type}-${idx + 1}`;
+    return {
+      id: id2,
+      type: "architectureNode",
+      position: { x, y },
+      data: {
+        label: comp.name,
+        type: comp.type,
+        description: `Inspected component: ${comp.tech}`,
+        color: PALETTE_COLORS[comp.type] || "#10B981",
+        technology: comp.tech,
+        protocol: comp.type === "gateway" ? "HTTPS / HTTP/2" : comp.type === "database" ? "TCP / Relational Wire" : comp.type === "queue" ? "TCP / AMQP" : comp.type === "cache" ? "RESP3 / TCP" : "HTTP / gRPC"
+      }
+    };
+  });
+  const edges = [];
+  const gateways = nodes.filter((n) => n.data.type === "gateway");
+  const services = nodes.filter((n) => n.data.type === "service" || n.data.type === "auth");
+  const caches = nodes.filter((n) => n.data.type === "cache");
+  const queues = nodes.filter((n) => n.data.type === "queue");
+  const dbs = nodes.filter((n) => n.data.type === "database");
+  gateways.forEach((gw) => {
+    services.forEach((srv) => {
+      edges.push({
+        id: `e-${gw.id}-${srv.id}`,
+        source: gw.id,
+        target: srv.id,
+        animated: true,
+        style: { stroke: "#38BDF8", strokeWidth: 2 }
+      });
+    });
+  });
+  services.forEach((srv) => {
+    caches.forEach((cache) => {
+      edges.push({
+        id: `e-${srv.id}-${cache.id}`,
+        source: srv.id,
+        target: cache.id,
+        style: { stroke: "#EF4444", strokeWidth: 2, strokeDasharray: "5,5" }
+      });
+    });
+    queues.forEach((q) => {
+      edges.push({
+        id: `e-${srv.id}-${q.id}`,
+        source: srv.id,
+        target: q.id,
+        animated: true,
+        style: { stroke: "#F59E0B", strokeWidth: 2 }
+      });
+    });
+    dbs.forEach((db) => {
+      edges.push({
+        id: `e-${srv.id}-${db.id}`,
+        source: srv.id,
+        target: db.id,
+        style: { stroke: "#8B5CF6", strokeWidth: 2 }
+      });
+    });
+  });
+  queues.forEach((q) => {
+    dbs.forEach((db) => {
+      edges.push({
+        id: `e-${q.id}-${db.id}`,
+        source: q.id,
+        target: db.id,
+        animated: true,
+        style: { stroke: "#F59E0B", strokeWidth: 2 }
+      });
+    });
+  });
+  return {
+    title: `${repoName} \u2014 Inspected Codebase Architecture`,
+    description: `Statically detected ${components.length} component(s) across repository configurations, manifests, and dependencies.`,
     nodes,
     edges
   };
 }
 function exportArchitectureToDockerCompose(nodes) {
-  let compose = `version: '3.8'
+  if (nodes.length === 0) {
+    return `# CollabCraft Docker Compose Specification
+# No services specified in architecture topology.
+services: {}
+`;
+  }
+  let compose = `name: collabcraft-generated-stack
 
 services:
 `;
+  const volumes = /* @__PURE__ */ new Set();
+  const dbServiceNames = [];
+  const queueServiceNames = [];
   nodes.forEach((n) => {
     const slug = n.id.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    if (n.data.type === "database") dbServiceNames.push(slug);
+    if (n.data.type === "queue") queueServiceNames.push(slug);
+  });
+  nodes.forEach((n) => {
+    const slug = n.id.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    const label = n.data.label.toLowerCase();
+    const tech = (n.data.technology || "").toLowerCase();
     compose += `  ${slug}:
 `;
     compose += `    container_name: ${slug}
 `;
     if (n.data.type === "gateway") {
       compose += `    image: nginx:alpine
-    ports:
+`;
+      compose += `    ports:
       - "80:80"
       - "443:443"
 `;
+      compose += `    healthcheck:
+`;
+      compose += `      test: ["CMD-SHELL", "wget -q --spider http://localhost || exit 1"]
+`;
+      compose += `      interval: 10s
+      timeout: 5s
+      retries: 3
+`;
+      const srvDeps = nodes.filter((o) => o.data.type === "service").map((o) => o.id.toLowerCase().replace(/[^a-z0-9_-]/g, "-"));
+      if (srvDeps.length > 0) {
+        compose += `    depends_on:
+`;
+        srvDeps.forEach((s) => {
+          compose += `      - ${s}
+`;
+        });
+      }
     } else if (n.data.type === "cache") {
       compose += `    image: redis:7-alpine
-    ports:
+`;
+      compose += `    command: ["redis-server", "--appendonly", "yes"]
+`;
+      compose += `    ports:
       - "6379:6379"
 `;
+      compose += `    volumes:
+      - ${slug}_data:/data
+`;
+      compose += `    healthcheck:
+`;
+      compose += `      test: ["CMD", "redis-cli", "ping"]
+`;
+      compose += `      interval: 5s
+      timeout: 3s
+      retries: 5
+`;
+      volumes.add(`${slug}_data`);
     } else if (n.data.type === "queue") {
-      compose += `    image: confluentinc/cp-kafka:7.5.0
-    ports:
+      if (label.includes("rabbitmq") || tech.includes("rabbitmq")) {
+        compose += `    image: rabbitmq:3-management-alpine
+`;
+        compose += `    ports:
+      - "5672:5672"
+      - "15672:15672"
+`;
+        compose += `    volumes:
+      - ${slug}_data:/var/lib/rabbitmq
+`;
+        compose += `    healthcheck:
+`;
+        compose += `      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+`;
+        compose += `      interval: 10s
+      timeout: 5s
+      retries: 5
+`;
+        volumes.add(`${slug}_data`);
+      } else {
+        compose += `    image: apache/kafka:3.7.0
+`;
+        compose += `    environment:
+`;
+        compose += `      KAFKA_NODE_ID: 1
+`;
+        compose += `      KAFKA_PROCESS_ROLES: broker,controller
+`;
+        compose += `      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+`;
+        compose += `      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${slug}:9092
+`;
+        compose += `      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+`;
+        compose += `      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+`;
+        compose += `      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+`;
+        compose += `      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+`;
+        compose += `      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+`;
+        compose += `      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+`;
+        compose += `      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+`;
+        compose += `    ports:
       - "9092:9092"
 `;
+        compose += `    volumes:
+      - ${slug}_data:/var/lib/kafka/data
+`;
+        compose += `    healthcheck:
+`;
+        compose += `      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+`;
+        compose += `      interval: 15s
+      timeout: 10s
+      retries: 5
+`;
+        volumes.add(`${slug}_data`);
+      }
     } else if (n.data.type === "database") {
-      compose += `    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: app_db
-      POSTGRES_PASSWORD: secret
-    ports:
+      if (label.includes("mongo") || tech.includes("mongo")) {
+        compose += `    image: mongo:7
+`;
+        compose += `    ports:
+      - "27017:27017"
+`;
+        compose += `    volumes:
+      - ${slug}_data:/data/db
+`;
+        compose += `    healthcheck:
+`;
+        compose += `      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+`;
+        compose += `      interval: 10s
+      timeout: 5s
+      retries: 5
+`;
+        volumes.add(`${slug}_data`);
+      } else if (label.includes("mysql") || tech.includes("mysql")) {
+        compose += `    image: mysql:8.0
+`;
+        compose += `    environment:
+`;
+        compose += `      MYSQL_ROOT_PASSWORD: \${MYSQL_ROOT_PASSWORD:-root_secure_pass}
+`;
+        compose += `      MYSQL_DATABASE: \${MYSQL_DATABASE:-app_db}
+`;
+        compose += `    ports:
+      - "3306:3306"
+`;
+        compose += `    volumes:
+      - ${slug}_data:/var/lib/mysql
+`;
+        compose += `    healthcheck:
+`;
+        compose += `      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+`;
+        compose += `      interval: 10s
+      timeout: 5s
+      retries: 5
+`;
+        volumes.add(`${slug}_data`);
+      } else {
+        compose += `    image: postgres:16-alpine
+`;
+        compose += `    environment:
+`;
+        compose += `      POSTGRES_USER: \${POSTGRES_USER:-app_user}
+`;
+        compose += `      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-postgres_secure_pass}
+`;
+        compose += `      POSTGRES_DB: \${POSTGRES_DB:-app_db}
+`;
+        compose += `    ports:
       - "5432:5432"
 `;
-    } else {
-      compose += `    build:
-      context: ./${slug}
-    environment:
-      PORT: 8080
-    ports:
-      - "8080"
+        compose += `    volumes:
+      - ${slug}_data:/var/lib/postgresql/data
 `;
+        compose += `    healthcheck:
+`;
+        compose += `      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-app_user} -d \${POSTGRES_DB:-app_db}"]
+`;
+        compose += `      interval: 10s
+      timeout: 5s
+      retries: 5
+`;
+        volumes.add(`${slug}_data`);
+      }
+    } else {
+      compose += `    image: node:20-alpine
+`;
+      compose += `    command: ["sh", "-c", "echo 'CollabCraft service ${n.data.label} running' && sleep infinity"]
+`;
+      compose += `    environment:
+      PORT: 8080
+      NODE_ENV: production
+`;
+      compose += `    ports:
+      - "8080:8080"
+`;
+      if (dbServiceNames.length > 0 || queueServiceNames.length > 0) {
+        compose += `    depends_on:
+`;
+        [...dbServiceNames, ...queueServiceNames].forEach((dep) => {
+          compose += `      ${dep}:
+        condition: service_healthy
+`;
+        });
+      }
     }
+    compose += `    networks:
+      - app-network
+`;
     compose += `    restart: unless-stopped
 
 `;
   });
+  compose += `networks:
+  app-network:
+    driver: bridge
+
+`;
+  if (volumes.size > 0) {
+    compose += `volumes:
+`;
+    volumes.forEach((v) => {
+      compose += `  ${v}:
+`;
+    });
+  }
   return compose;
 }
 
@@ -30241,7 +30557,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "render_architecture_dag",
-        description: "Generates an interactive, collaborative system architecture Directed Acyclic Graph (DAG) with hardware-accelerated React Flow nodes and animated edges, streaming it live to CollabCraft Studio.",
+        description: "Generates an interactive, collaborative system architecture Directed Acyclic Graph (DAG) with hardware-accelerated React Flow nodes and animated edges, streaming it to CollabCraft Studio.",
         inputSchema: {
           type: "object",
           properties: {
@@ -30251,7 +30567,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             roomName: {
               type: "string",
-              description: "Optional custom room identifier. Defaults to auto-generated UUID."
+              description: "Optional custom room identifier. If omitted, generates an isolated secure room UUID."
             },
             openBrowser: {
               type: "boolean",
@@ -30263,13 +30579,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "inspect_repository_architecture",
-        description: "Scans the local codebase (Docker Compose, package.json, pom.xml, requirements.txt, Prisma, Kubernetes) and automatically generates an interactive system architecture diagram of the actual repository.",
+        description: "Statically inspects the local codebase (Docker Compose, package.json, pom.xml, requirements.txt, Prisma, Kubernetes) and builds an authentic topology DAG directly from discovered services and data stores.",
         inputSchema: {
           type: "object",
           properties: {
             repoPath: {
               type: "string",
-              description: "Absolute or relative path to the codebase repository (defaults to current directory)."
+              description: "Absolute or relative path to the codebase repository (defaults to current working directory)."
+            },
+            roomName: {
+              type: "string",
+              description: "Optional custom room identifier. If omitted, generates an isolated secure room UUID."
             },
             openBrowser: {
               type: "boolean",
@@ -30280,7 +30600,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "detect_architecture_drift",
-        description: "Analyzes codebase files against architectural best practices and detects drift (unprotected endpoints, direct database coupling, missing caching, circular microservice dependencies).",
+        description: "Performs static architectural and security drift audit: inspects tsconfig compiler strictness, exposed container ports, missing service healthchecks, unshielded databases without cache tiers, and missing rate-limiting middleware.",
         inputSchema: {
           type: "object",
           properties: {
@@ -30293,7 +30613,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "export_infrastructure_spec",
-        description: "Exports a natural language system description or existing room into runnable Infrastructure-as-Code (Docker Compose YAML or Architecture Topology JSON).",
+        description: "Compiles a system architecture description into production-ready Infrastructure-as-Code (runnable Docker Compose YAML with healthchecks and named volumes, or Architecture Topology JSON).",
         inputSchema: {
           type: "object",
           properties: {
@@ -30318,32 +30638,54 @@ async function syncGraphToYjs(roomName, nodes, edges) {
     const doc = new Doc2();
     const sanitizedRoom = "collabcraft-" + roomName.replace(/[^a-zA-Z0-9-_]/g, "-");
     const WebSocket2 = require_ws();
-    const wsProvider = new WebsocketProvider(
-      WS_RELAY_URL,
-      sanitizedRoom,
-      doc,
-      { WebSocketPolyfill: WebSocket2 }
-    );
+    let isConnected = false;
+    let wsProvider = null;
+    try {
+      wsProvider = new WebsocketProvider(
+        WS_RELAY_URL,
+        sanitizedRoom,
+        doc,
+        { WebSocketPolyfill: WebSocket2 }
+      );
+    } catch (err) {
+      doc.destroy();
+      return resolve2({ success: false, error: `Failed to initialize WebSocket client: ${err.message}` });
+    }
     const nodesMap = doc.getMap("rf_nodes");
     const edgesMap = doc.getMap("rf_edges");
+    const cleanup = () => {
+      if (wsProvider) {
+        wsProvider.destroy();
+      }
+      doc.destroy();
+    };
+    const timeoutTimer = setTimeout(() => {
+      if (!isConnected) {
+        cleanup();
+        resolve2({
+          success: false,
+          error: `Could not connect to collaboration relay (${WS_RELAY_URL}) within 3000ms.`
+        });
+      }
+    }, 3e3);
     wsProvider.on("status", (event) => {
       if (event.status === "connected") {
+        isConnected = true;
+        clearTimeout(timeoutTimer);
         doc.transact(() => {
+          const existingNodeKeys = Array.from(nodesMap.keys());
+          existingNodeKeys.forEach((k) => nodesMap.delete(k));
+          const existingEdgeKeys = Array.from(edgesMap.keys());
+          existingEdgeKeys.forEach((k) => edgesMap.delete(k));
           nodes.forEach((n) => nodesMap.set(n.id, n));
           edges.forEach((e) => edgesMap.set(e.id, e));
         });
         setTimeout(() => {
-          wsProvider.destroy();
-          doc.destroy();
-          resolve2();
-        }, 800);
+          cleanup();
+          resolve2({ success: true });
+        }, 500);
       }
     });
-    setTimeout(() => {
-      wsProvider.destroy();
-      doc.destroy();
-      resolve2();
-    }, 2e3);
   });
 }
 function inspectCodebase(targetDir) {
@@ -30353,11 +30695,21 @@ function inspectCodebase(targetDir) {
     const p = path3.join(targetDir, cf);
     if (fs6.existsSync(p)) {
       const content = fs6.readFileSync(p, "utf-8").toLowerCase();
-      if (content.includes("redis")) discoveredComponents.push({ name: "Redis Cache Tier", type: "cache", tech: "Redis 7 Cluster" });
-      if (content.includes("postgres")) discoveredComponents.push({ name: "PostgreSQL Primary Ledger", type: "database", tech: "Postgres 16 Multi-AZ" });
-      if (content.includes("kafka")) discoveredComponents.push({ name: "Apache Kafka Event Bus", type: "queue", tech: "Kafka 3.6 (KRaft)" });
-      if (content.includes("rabbitmq")) discoveredComponents.push({ name: "RabbitMQ Message Broker", type: "queue", tech: "RabbitMQ AMQP" });
-      if (content.includes("mongo")) discoveredComponents.push({ name: "MongoDB Document Store", type: "database", tech: "MongoDB 7" });
+      if (content.includes("redis")) {
+        discoveredComponents.push({ name: "Redis Cache Tier", type: "cache", tech: "Redis 7 Cluster" });
+      }
+      if (content.includes("postgres")) {
+        discoveredComponents.push({ name: "PostgreSQL Database", type: "database", tech: "Postgres 16 Multi-AZ" });
+      }
+      if (content.includes("kafka")) {
+        discoveredComponents.push({ name: "Apache Kafka Event Bus", type: "queue", tech: "Kafka 3.7 (KRaft)" });
+      }
+      if (content.includes("rabbitmq")) {
+        discoveredComponents.push({ name: "RabbitMQ Message Broker", type: "queue", tech: "RabbitMQ AMQP" });
+      }
+      if (content.includes("mongo")) {
+        discoveredComponents.push({ name: "MongoDB Document Store", type: "database", tech: "MongoDB 7" });
+      }
       if (content.includes("nginx") || content.includes("gateway") || content.includes("traefik") || content.includes("envoy")) {
         discoveredComponents.push({ name: "Edge API Gateway", type: "gateway", tech: "Reverse Proxy / Ingress" });
       }
@@ -30368,11 +30720,21 @@ function inspectCodebase(targetDir) {
     try {
       const pkg = JSON.parse(fs6.readFileSync(pkgPath, "utf-8"));
       const deps = { ...pkg.dependencies || {}, ...pkg.devDependencies || {} };
-      if (deps["next"]) discoveredComponents.push({ name: `${pkg.name || "Web Application"} (Next.js)`, type: "service", tech: "Next.js 15 App Router" });
-      if (deps["express"] || deps["fastify"] || deps["@nestjs/core"]) discoveredComponents.push({ name: "REST API Gateway Service", type: "service", tech: "Node.js REST API" });
-      if (deps["@xyflow/react"] || deps["reactflow"]) discoveredComponents.push({ name: "Interactive Topology Canvas", type: "service", tech: "React Flow CAD" });
-      if (deps["yjs"] || deps["y-websocket"]) discoveredComponents.push({ name: "Yjs CRDT Collaboration Relay", type: "queue", tech: "Yjs WebSocket Server" });
-      if (deps["@prisma/client"] || deps["prisma"]) discoveredComponents.push({ name: "Prisma ORM Database Client", type: "database", tech: "Prisma Data Layer" });
+      if (deps["next"]) {
+        discoveredComponents.push({ name: `${pkg.name || "Web Application"} (Next.js)`, type: "service", tech: "Next.js 15 App Router" });
+      }
+      if (deps["express"] || deps["fastify"] || deps["@nestjs/core"]) {
+        discoveredComponents.push({ name: "REST API Gateway Service", type: "service", tech: "Node.js REST API" });
+      }
+      if (deps["@xyflow/react"] || deps["reactflow"]) {
+        discoveredComponents.push({ name: "Interactive CAD Canvas", type: "service", tech: "React Flow CAD" });
+      }
+      if (deps["yjs"] || deps["y-websocket"]) {
+        discoveredComponents.push({ name: "Yjs CRDT Collaboration Relay", type: "queue", tech: "Yjs WebSocket Server" });
+      }
+      if (deps["@prisma/client"] || deps["prisma"]) {
+        discoveredComponents.push({ name: "Prisma ORM Data Layer", type: "database", tech: "Prisma Data Layer" });
+      }
     } catch {
     }
   }
@@ -30381,10 +30743,18 @@ function inspectCodebase(targetDir) {
   if (fs6.existsSync(reqPath) || fs6.existsSync(pyprojectPath)) {
     const pyContent = (fs6.existsSync(reqPath) ? fs6.readFileSync(reqPath, "utf-8") : "") + (fs6.existsSync(pyprojectPath) ? fs6.readFileSync(pyprojectPath, "utf-8") : "");
     const lower = pyContent.toLowerCase();
-    if (lower.includes("fastapi")) discoveredComponents.push({ name: "FastAPI Backend Service", type: "service", tech: "Python 3.12 / FastAPI" });
-    if (lower.includes("django")) discoveredComponents.push({ name: "Django Core Service", type: "service", tech: "Python / Django" });
-    if (lower.includes("celery")) discoveredComponents.push({ name: "Celery Distributed Task Queue", type: "queue", tech: "Celery Worker" });
-    if (lower.includes("langchain") || lower.includes("langgraph")) discoveredComponents.push({ name: "AI Agent Reasoning Engine", type: "service", tech: "LangGraph / LangChain" });
+    if (lower.includes("fastapi")) {
+      discoveredComponents.push({ name: "FastAPI Backend Service", type: "service", tech: "Python 3.12 / FastAPI" });
+    }
+    if (lower.includes("django")) {
+      discoveredComponents.push({ name: "Django Core Service", type: "service", tech: "Python / Django" });
+    }
+    if (lower.includes("celery")) {
+      discoveredComponents.push({ name: "Celery Distributed Task Queue", type: "queue", tech: "Celery Worker" });
+    }
+    if (lower.includes("langchain") || lower.includes("langgraph")) {
+      discoveredComponents.push({ name: "AI Agent Reasoning Engine", type: "service", tech: "LangGraph / LangChain" });
+    }
     if (lower.includes("qdrant") || lower.includes("chromadb") || lower.includes("pinecone")) {
       discoveredComponents.push({ name: "Vector Search Database", type: "database", tech: "Vector Embeddings DB" });
     }
@@ -30404,9 +30774,15 @@ function inspectCodebase(targetDir) {
   const gradlePath = path3.join(targetDir, "build.gradle");
   if (fs6.existsSync(pomPath) || fs6.existsSync(gradlePath)) {
     const jvmContent = (fs6.existsSync(pomPath) ? fs6.readFileSync(pomPath, "utf-8") : "") + (fs6.existsSync(gradlePath) ? fs6.readFileSync(gradlePath, "utf-8") : "");
-    if (jvmContent.includes("spring-cloud-starter-gateway")) discoveredComponents.push({ name: "API Gateway Service", type: "gateway", tech: "Spring Cloud Gateway / Netty" });
-    if (jvmContent.includes("spring-boot-starter-data-redis")) discoveredComponents.push({ name: "Redis Distributed Store", type: "cache", tech: "Redis Reactive" });
-    if (jvmContent.includes("spring-boot")) discoveredComponents.push({ name: "Core Business Microservice", type: "service", tech: "Spring Boot 3 / Java 21" });
+    if (jvmContent.includes("spring-cloud-starter-gateway")) {
+      discoveredComponents.push({ name: "API Gateway Service", type: "gateway", tech: "Spring Cloud Gateway / Netty" });
+    }
+    if (jvmContent.includes("spring-boot-starter-data-redis")) {
+      discoveredComponents.push({ name: "Redis Distributed Store", type: "cache", tech: "Redis Reactive" });
+    }
+    if (jvmContent.includes("spring-boot")) {
+      discoveredComponents.push({ name: "Core Business Microservice", type: "service", tech: "Spring Boot 3 / Java 21" });
+    }
   }
   const k8sDir = path3.join(targetDir, "k8s");
   const helmDir = path3.join(targetDir, "helm");
@@ -30414,60 +30790,175 @@ function inspectCodebase(targetDir) {
     discoveredComponents.push({ name: "Kubernetes Cluster Ingress", type: "gateway", tech: "K8s Ingress Controller" });
   }
   const seen = /* @__PURE__ */ new Set();
-  const uniqueComponents = discoveredComponents.filter((c) => {
+  return discoveredComponents.filter((c) => {
     if (seen.has(c.name)) return false;
     seen.add(c.name);
     return true;
   });
-  if (uniqueComponents.length === 0) {
-    uniqueComponents.push(
-      { name: "Edge API Gateway", type: "gateway", tech: "TLS Termination & Ingress" },
-      { name: "Core Application Service", type: "service", tech: "Runtime Service" },
-      { name: "Persistent Database Cluster", type: "database", tech: "Relational DB" }
-    );
+}
+function detectArchitectureDrift(targetDir) {
+  const findings = [];
+  const tsconfigPath = path3.join(targetDir, "tsconfig.json");
+  if (fs6.existsSync(tsconfigPath)) {
+    try {
+      const raw = fs6.readFileSync(tsconfigPath, "utf-8");
+      let tsconfig;
+      try {
+        tsconfig = JSON.parse(raw);
+      } catch {
+        const cleaned = raw.replace(/^\s*\/\/.*$/gm, "").replace(/,(\s*[}\]])/g, "$1");
+        tsconfig = JSON.parse(cleaned);
+      }
+      const isStrict = tsconfig.compilerOptions?.strict === true;
+      if (isStrict) {
+        findings.push({
+          severity: "PASS",
+          title: "Type Safety Contract",
+          detail: "tsconfig.json has 'compilerOptions.strict: true' active. Type signatures and boundaries are statically enforced."
+        });
+      } else {
+        findings.push({
+          severity: "MEDIUM",
+          title: "Type Safety Drift",
+          detail: "tsconfig.json exists but 'compilerOptions.strict' is not enabled. Implicit 'any' and unvalidated null types weaken architectural boundaries."
+        });
+      }
+    } catch {
+      findings.push({
+        severity: "LOW",
+        title: "TypeScript Configuration Parse Error",
+        detail: "tsconfig.json is present but could not be parsed."
+      });
+    }
+  } else {
+    findings.push({
+      severity: "MEDIUM",
+      title: "Missing Type Checking Harness",
+      detail: "No tsconfig.json detected. Codebase lacks compile-time contract validation."
+    });
   }
-  return uniqueComponents;
+  const composePath = ["docker-compose.yml", "docker-compose.yaml", "compose.yml"].map((f) => path3.join(targetDir, f)).find((f) => fs6.existsSync(f));
+  if (composePath) {
+    const composeContent = fs6.readFileSync(composePath, "utf-8");
+    findings.push({
+      severity: "PASS",
+      title: "Infrastructure-as-Code Orchestration",
+      detail: `Valid Compose configuration detected at ${path3.basename(composePath)}.`
+    });
+    if (/["'](5432:5432|3306:3306|27017:27017|6379:6379)["']/.test(composeContent)) {
+      findings.push({
+        severity: "HIGH",
+        title: "Security Boundary Drift: Publicly Exposed Storage Ports",
+        detail: "Database or Cache ports (5432/3306/27017/6379) are mapped directly to host network interfaces. In production, persistent storage should communicate solely over isolated bridge networks."
+      });
+    }
+    if (!composeContent.includes("healthcheck")) {
+      findings.push({
+        severity: "MEDIUM",
+        title: "Reliability Drift: Missing Service Healthchecks",
+        detail: "No 'healthcheck' configurations detected in docker-compose.yml. Container orchestrators cannot verify downstream service readiness before routing traffic."
+      });
+    }
+  } else {
+    findings.push({
+      severity: "HIGH",
+      title: "Missing Infrastructure-as-Code",
+      detail: "No docker-compose.yml detected in repository root. Local multi-service reproducibility is absent."
+    });
+  }
+  const pkgPath = path3.join(targetDir, "package.json");
+  if (fs6.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs6.readFileSync(pkgPath, "utf-8"));
+      const allDeps = { ...pkg.dependencies || {}, ...pkg.devDependencies || {} };
+      const hasDb = !!(allDeps["pg"] || allDeps["mysql2"] || allDeps["@prisma/client"] || allDeps["mongoose"] || allDeps["typeorm"]);
+      const hasCache = !!(allDeps["redis"] || allDeps["ioredis"] || allDeps["memcached"]);
+      const hasApi = !!(allDeps["express"] || allDeps["fastify"] || allDeps["@nestjs/core"]);
+      const hasRateLimit = !!(allDeps["express-rate-limit"] || allDeps["@upstash/ratelimit"] || allDeps["rate-limiter-flexible"]);
+      if (hasDb && !hasCache) {
+        findings.push({
+          severity: "MEDIUM",
+          title: "Architecture Drift: Unshielded Database Queries",
+          detail: "Persistent database dependencies detected without an accompanying caching tier (Redis/Memcached). High-concurrency reads will place unbounded pressure on primary database connections."
+        });
+      }
+      if (hasApi && !hasRateLimit) {
+        findings.push({
+          severity: "HIGH",
+          title: "Security Drift: Unprotected Public API Endpoints",
+          detail: "HTTP server framework detected without rate-limiting middleware (express-rate-limit, @upstash/ratelimit). Endpoints are vulnerable to volumetric abuse."
+        });
+      }
+    } catch {
+    }
+  }
+  const hasTests = fs6.existsSync(path3.join(targetDir, "tests")) || fs6.existsSync(path3.join(targetDir, "__tests__")) || fs6.existsSync(path3.join(targetDir, "test"));
+  if (hasTests) {
+    findings.push({
+      severity: "PASS",
+      title: "Automated Regression Harness",
+      detail: "Automated test suite detected. Structural changes can be validated against regressions."
+    });
+  } else {
+    findings.push({
+      severity: "HIGH",
+      title: "Quality Drift: Absent Test Suite",
+      detail: "No test directories (tests/, __tests__/) found. System behavior is unverified by continuous integration."
+    });
+  }
+  return findings;
 }
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args2 } = request.params;
   try {
     if (name === "render_architecture_dag") {
       const prompt = String(args2?.prompt || "");
-      const roomName = String(args2?.roomName || "room-" + Math.random().toString(36).substring(2, 8));
+      if (!prompt.trim()) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "Error: 'prompt' parameter is required." }]
+        };
+      }
+      const roomName = String(args2?.roomName || "room-" + crypto.randomUUID().slice(0, 8));
       const shouldOpen = args2?.openBrowser !== false;
       const topology = generateArchitectureFromPrompt(prompt);
-      await syncGraphToYjs(roomName, topology.nodes, topology.edges);
+      const syncResult = await syncGraphToYjs(roomName, topology.nodes, topology.edges);
       const liveUrl = `${APP_BASE_URL}/?room=${roomName}`;
       if (shouldOpen) {
         launchBrowser(liveUrl).catch(() => {
         });
       }
+      const syncStatusNotice = syncResult.success ? `\u2022 **CRDT Sync**: Streamed to relay \`${WS_RELAY_URL}\` into room \`${roomName}\`` : `\u2022 **CRDT Sync Warning**: ${syncResult.error} (Canvas will load locally from browser IndexedDB)`;
       return {
         content: [
           {
             type: "text",
-            text: `\u2705 **Architecture DAG Generated & Streamed to CollabCraft Studio**
+            text: `\u2705 **Architecture DAG Generated**
 
 \u2022 **Title**: ${topology.title}
 \u2022 **Nodes (${topology.nodes.length})**: ${topology.nodes.map((n) => n.data.label).join(", ")}
 \u2022 **Connected Edges**: ${topology.edges.length} automated DAG channels
+${syncStatusNotice}
 \u2022 **Live Interactive Canvas**: [${liveUrl}](${liveUrl})
 
-*The architecture was synchronized via Yjs CRDTs. Opening the URL allows pan, zoom, dragging, editing handles, and exporting to Docker Compose YAML.*`
+*The architecture topology was computed and synchronized. Open the canvas URL to pan, zoom, edit handles, or export to Docker Compose YAML.*`
           }
         ]
       };
     }
     if (name === "inspect_repository_architecture") {
       const targetDir = path3.resolve(String(args2?.repoPath || process.cwd()));
+      const roomName = String(args2?.roomName || "repo-" + crypto.randomUUID().slice(0, 8));
       const shouldOpen = args2?.openBrowser !== false;
       const discoveredComponents = inspectCodebase(targetDir);
-      const prompt = `System architecture with ${discoveredComponents.map((c) => c.name).join(", ")}`;
-      const roomName = "repo-" + path3.basename(targetDir).replace(/[^a-zA-Z0-9-_]/g, "-");
-      const topology = generateArchitectureFromPrompt(prompt);
-      await syncGraphToYjs(roomName, topology.nodes, topology.edges);
+      const topology = buildArchitectureFromDiscoveredComponents(discoveredComponents, path3.basename(targetDir));
+      let syncNotice = "";
+      if (topology.nodes.length > 0) {
+        const syncResult = await syncGraphToYjs(roomName, topology.nodes, topology.edges);
+        syncNotice = syncResult.success ? `\u2022 **CRDT Sync**: Streamed directly into private room \`${roomName}\`` : `\u2022 **CRDT Sync Warning**: ${syncResult.error}`;
+      }
       const liveUrl = `${APP_BASE_URL}/?room=${roomName}`;
-      if (shouldOpen) {
+      if (shouldOpen && topology.nodes.length > 0) {
         launchBrowser(liveUrl).catch(() => {
         });
       }
@@ -30479,41 +30970,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 \u2022 **Repository Root**: \`${targetDir}\`
 \u2022 **Detected Services & Infrastructure (${discoveredComponents.length})**:
-` + discoveredComponents.map((c) => `  - **[${c.type.toUpperCase()}]** ${c.name} (${c.tech})`).join("\n") + `
-
+` + (discoveredComponents.length > 0 ? discoveredComponents.map((c) => `  - **[${c.type.toUpperCase()}]** ${c.name} (${c.tech})`).join("\n") : "  *(No recognizable service manifests detected)*") + `
+${syncNotice}
 \u2022 **Interactive Canvas URL**: [${liveUrl}](${liveUrl})
-*The full code-to-architecture DAG has been streamed to CollabCraft Studio with live editing and export capability.*`
+
+*The actual codebase architecture was extracted from manifests and placed onto the canvas with real detected tiers and technology labels.*`
           }
         ]
       };
     }
     if (name === "detect_architecture_drift") {
       const targetDir = path3.resolve(String(args2?.repoPath || process.cwd()));
-      const findings = [];
-      const hasDocker = fs6.existsSync(path3.join(targetDir, "docker-compose.yml")) || fs6.existsSync(path3.join(targetDir, "docker-compose.yaml"));
-      if (!hasDocker) {
-        findings.push("\u26A0\uFE0F **HIGH RISK \u2014 Missing Infrastructure-as-Code**: No `docker-compose.yml` detected in repository root. Local multi-service reproducibility is compromised.");
-      } else {
-        findings.push("\u2705 **Infrastructure-as-Code**: Valid `docker-compose.yml` present for multi-service orchestration.");
-      }
-      const hasEnvExample = fs6.existsSync(path3.join(targetDir, ".env.example"));
-      if (!hasEnvExample) {
-        findings.push("\u26A0\uFE0F **MEDIUM RISK \u2014 Configuration Drift Risk**: Missing `.env.example`. Environment variable boundaries across services cannot be statically validated.");
-      } else {
-        findings.push("\u2705 **Configuration Hygiene**: `.env.example` verified for service boundary validation.");
-      }
-      const hasTsConfig = fs6.existsSync(path3.join(targetDir, "tsconfig.json"));
-      if (hasTsConfig) {
-        findings.push("\u2705 **Contract Verification**: Strict TypeScript type-checking active.");
-      } else {
-        findings.push("\u2139\uFE0F **Contract Risk**: No `tsconfig.json` detected; runtime payload schema drifts are not compile-time guarded.");
-      }
-      const hasTests = fs6.existsSync(path3.join(targetDir, "tests")) || fs6.existsSync(path3.join(targetDir, "__tests__"));
-      if (hasTests) {
-        findings.push("\u2705 **Automated Verification**: Test harness detected in repository root.");
-      } else {
-        findings.push("\u26A0\uFE0F **HIGH RISK \u2014 Quality Drift**: No automated test suites (`tests/`) found. Regression prevention is absent.");
-      }
+      const findings = detectArchitectureDrift(targetDir);
+      const formatted = findings.map((f) => {
+        const icon = f.severity === "PASS" ? "\u2705" : f.severity === "HIGH" ? "\u{1F6A8}" : f.severity === "MEDIUM" ? "\u26A0\uFE0F" : "\u2139\uFE0F";
+        return `${icon} **[${f.severity}] ${f.title}**
+   ${f.detail}`;
+      });
       return {
         content: [
           {
@@ -30522,7 +30995,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 **Target Path**: \`${targetDir}\`
 
-` + findings.join("\n\n") + `
+` + formatted.join("\n\n") + `
 
 *Run \`inspect_repository_architecture\` to view the live topology graph in CollabCraft Studio.*`
           }
@@ -30532,6 +31005,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "export_infrastructure_spec") {
       const prompt = String(args2?.prompt || "");
       const format = String(args2?.format || "docker-compose");
+      if (format !== "docker-compose" && format !== "json") {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Error: Unsupported format '${format}'. Valid options are 'docker-compose' or 'json'.`
+            }
+          ]
+        };
+      }
       const topology = generateArchitectureFromPrompt(prompt);
       if (format === "docker-compose") {
         const yaml = exportArchitectureToDockerCompose(topology.nodes);
@@ -30575,12 +31059,18 @@ async function run() {
   await server.connect(transport);
   console.error("CollabCraft MCP Server running on stdio");
 }
-run().catch((err) => {
-  console.error("Fatal error starting CollabCraft MCP Server:", err);
-  process.exit(1);
-});
+if (typeof require !== "undefined" && require.main === module) {
+  run().catch((err) => {
+    console.error("Fatal error starting CollabCraft MCP Server:", err);
+    process.exit(1);
+  });
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  detectArchitectureDrift,
   inspectCodebase,
+  launchBrowser,
+  run,
+  server,
   syncGraphToYjs
 });

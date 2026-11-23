@@ -1,2 +1,5 @@
 #!/usr/bin/env node
-require('../dist/mcp.js');
+const mcp = require('../dist/mcp.js');
+if (mcp && typeof mcp.run === 'function') {
+  mcp.run();
+}

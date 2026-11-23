@@ -4,13 +4,13 @@
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Protocol_1.0-blueviolet?logo=anthropic)](https://modelcontextprotocol.io/)
 [![React Flow](https://img.shields.io/badge/React_Flow-@xyflow/react_13-FF0072?logo=reactflow)](https://reactflow.dev/)
 [![Yjs CRDT](https://img.shields.io/badge/CRDT-Yjs_Conflict--Free-orange.svg)](https://yjs.dev/)
-[![Local-First](https://img.shields.io/badge/Storage-IndexedDB_Zero_Loss-purple.svg)](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
+[![Local-First](https://img.shields.io/badge/Storage-IndexedDB_Local_First-purple.svg)](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 [![TypeScript 5](https://img.shields.io/badge/TypeScript-5.6-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-An open-source, enterprise-grade **System Architecture CAD Platform & Model Context Protocol (MCP) Server** built with **Next.js 15**, **React Flow (`@xyflow/react`)**, and **Yjs CRDTs**.
+An open-source **System Architecture CAD Platform & Model Context Protocol (MCP) Server** built with **Next.js 15**, **React Flow (`@xyflow/react`)**, and **Yjs CRDTs**.
 
-Bridges the spatial gap in AI coding agents (**Claude Code, Cursor, Windsurf, and Claude Desktop**), allowing agents to inspect repositories, generate interactive system topology graphs with animated data-flow edges, detect architecture drift, and export directly to runnable Docker Compose YAML.
+Bridges the spatial gap in AI coding agents (**Claude Code, Cursor, Windsurf, and Claude Desktop**), allowing agents to inspect repositories, generate interactive system topology graphs with animated data-flow edges, detect architectural drift, and export directly to runnable Docker Compose YAML with healthchecks and named volumes.
 
 ---
 
@@ -34,10 +34,10 @@ Bridges the spatial gap in AI coding agents (**Claude Code, Cursor, Windsurf, an
                             ▼
  ┌────────────────────────────────────────────────────────┐
  │       CollabCraft Web Visualizer (React Flow 13)       │
- │   • Opens instantly at https://collabcraft-.../?room=X │
+ │   • Isolated private workspace rooms                   │
  │   • Bidirectional connection handles (N, S, E, W)      │
  │   • Animated bezier & smoothstep edge routing          │
- │   • Local-First IndexedDB Zero-Data-Loss cache         │
+ │   • Local-First IndexedDB browser cache                │
  │   • Real-time human-in-the-loop multi-cursor sync      │
  └────────────────────────────────────────────────────────┘
 ```
@@ -77,34 +77,20 @@ Add to your `.cursor/mcp.json` or Global Cursor Settings:
 ## 🛠️ The 4 Core MCP Tools
 
 ### 1. `render_architecture_dag`
-* **Prompt**: *"Design an ultra-low latency fintech payment gateway with Kafka, Redis caching, and PostgreSQL ledger."*
-* **Behavior**: Replaces static, broken Mermaid text with an **interactive React Flow CAD canvas**. Generates 4-tier topological nodes with multi-directional handles and animated data-flow edges, streaming the result live to CollabCraft Studio and opening it in the browser.
+* **Purpose**: Generates an interactive, collaborative React Flow DAG from system specifications and opens an isolated workspace canvas in the browser.
+* **Input**: `prompt` (string), optional `roomName` (string), optional `openBrowser` (boolean).
 
 ### 2. `inspect_repository_architecture`
-* **Prompt**: *"Map out the services and databases used in this repository."*
-* **Behavior**: Scans `docker-compose.yml`, `package.json`, `pom.xml`, `requirements.txt`, `prisma/schema.prisma`, and Kubernetes configs. Reverse-engineers the codebase into a visual topology DAG with zero manual effort.
+* **Purpose**: Statically scans codebase manifests (`docker-compose.yml`, `package.json`, `pom.xml`, `requirements.txt`, `prisma/schema.prisma`, `k8s/`, `helm/`) and translates detected services, message brokers, caches, and databases directly into an authentic CAD topology.
+* **Input**: optional `repoPath` (string), optional `roomName` (string), optional `openBrowser` (boolean).
 
 ### 3. `detect_architecture_drift`
-* **Prompt**: *"Audit this codebase for architectural drift and security anti-patterns."*
-* **Behavior**: Detects missing rate-limiting layers on public APIs, unrouted microservices, missing caching tiers, and direct synchronous couplings.
+* **Purpose**: Static architecture and security audit: checks `tsconfig.json` compiler strictness, exposed host ports on persistent storage, container healthchecks, missing caching tiers for databases, and API rate-limiting middleware.
+* **Input**: optional `repoPath` (string).
 
 ### 4. `export_infrastructure_spec`
-* **Prompt**: *"Export this architecture as a Docker Compose specification."*
-* **Behavior**: Compiles the visual canvas topology directly into production-ready `docker-compose.yml` with container networking, volumes, and health checks.
-
----
-
-## ⚡ Web Platform Highlights (`@xyflow/react` + Yjs)
-
-1. **Hardware-Accelerated React Flow Canvas**:
-   * Custom hardware-accelerated nodes with 4 directional handles (Input, Output, Top, Bottom) for arbitrary multi-point wiring.
-   * Includes Minimap, zoom controls, fit-view, and multi-node selection.
-2. **Conflict-Free Replicated Data Types (CRDTs)**:
-   * Uses `Y.Doc`, `Y.Map<ArchitectureNode>`, and `Y.Map<ArchitectureEdge>` for guaranteed convergence across distributed browsers with zero merge conflicts.
-3. **Local-First Zero-Data-Loss Persistence (`y-indexeddb`)**:
-   * State is continuously committed into browser IndexedDB. Hard page reloads restore 100% of user nodes and custom edge layouts.
-4. **Dual-Transport Synchronization**:
-   * Uses WebRTC P2P (`BroadcastChannel`) for 0ms local tab sync with WebSocket fallback relay (`y-websocket`).
+* **Purpose**: Compiles architecture topology into a runnable multi-container `docker-compose.yml` (configured with bridge networks, container healthchecks, and named volumes for persistence) or raw JSON topology.
+* **Input**: `prompt` (string), `format` (`"docker-compose"` | `"json"`).
 
 ---
 
@@ -117,21 +103,27 @@ cd collabcraft-system-studio
 npm install --legacy-peer-deps
 ```
 
-### 2. Run Web Development Server
+### 2. Start Self-Hosted Collaboration Relay
+```bash
+npm run server
+```
+Runs the Yjs WebSocket relay at `ws://localhost:1234` with health monitoring at `http://localhost:1234/health`.
+
+### 3. Run Web Development Studio
 ```bash
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to view the live studio.
 
-### 3. Build Web App & MCP Binary Bundle
+### 4. Build Web App & MCP Binary Bundle
 ```bash
 npm run build
 ```
 Builds `dist/mcp.js` (standalone Node.js bundle) and the Next.js 15 production artifacts.
 
-### 4. Test MCP Server Locally
+### 5. Run Verification Test Suite
 ```bash
-node bin/collabcraft-mcp.js
+npm test
 ```
 
 ---

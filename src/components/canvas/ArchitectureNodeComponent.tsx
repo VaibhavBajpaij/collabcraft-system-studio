@@ -2,6 +2,12 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { ArchitectureNodeData } from '@/lib/types/canvas';
 import { Layers, Database, Cpu, HardDrive, Network, ShieldCheck } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   gateway: <Network className="w-4 h-4 text-sky-400" />,
@@ -20,9 +26,10 @@ export const ArchitectureNodeComponent = memo((props: any) => {
   return (
     <div
       style={{ borderColor: nodeData.color || '#3B82F6' }}
-      className={`relative min-w-[220px] max-w-[260px] rounded-xl border-2 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur transition-all duration-150 ${
+      className={cn(
+        'relative min-w-[220px] max-w-[260px] rounded-xl border-2 bg-slate-900/95 p-3.5 shadow-2xl backdrop-blur transition-all duration-150',
         selected ? 'ring-2 ring-sky-400 shadow-sky-500/30 scale-[1.02]' : 'hover:border-slate-300'
-      }`}
+      )}
     >
       {/* React Flow Connection Handles */}
       <Handle

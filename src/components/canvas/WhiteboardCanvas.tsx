@@ -18,6 +18,7 @@ import { ArchitectureNode, ArchitectureEdge, ShapeType, UserPresence } from '@/l
 import { CollabDoc } from '@/lib/crdt/yjsDoc';
 import { ArchitectureNodeComponent } from './ArchitectureNodeComponent';
 import { exportArchitectureToDockerCompose } from '@/lib/copilot/architectureGenerator';
+import confetti from 'canvas-confetti';
 import {
   Layers,
   Database,
@@ -156,14 +157,9 @@ export default function WhiteboardCanvas({ roomId }: Props) {
 
     // 1. Observe Yjs Nodes & Edges Map changes
     const syncFromDoc = () => {
-      const docNodes = doc.getNodes();
-      const docEdges = doc.getEdges();
-      if (docNodes.length > 0) {
-        setNodes(docNodes);
-      }
-      if (docEdges.length > 0) {
-        setEdges(docEdges);
-      }
+      // Fix P1.7: Unconditionally reflect document state, allowing remote delete-all to clear canvas
+      setNodes(doc.getNodes());
+      setEdges(doc.getEdges());
     };
 
     doc.nodesMap.observe(syncFromDoc);
@@ -359,6 +355,9 @@ export default function WhiteboardCanvas({ roomId }: Props) {
         collabRef.current.updateEdges(data.edges);
         setNodes(data.nodes);
         setEdges(data.edges);
+        try {
+          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+        } catch {}
       }
       setIsCopilotOpen(false);
       setCopilotPrompt('');
@@ -394,6 +393,32 @@ export default function WhiteboardCanvas({ roomId }: Props) {
     URL.revokeObjectURL(url);
     setIsExportOpen(false);
   };
+
+  // Fix P1.8: Real-time Multi-cursor pointer position broadcast via Awareness protocol
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const awareness = collabRef.current?.getAwareness();
+    if (!awareness) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(e.clientX - rect.left);
+    const y = Math.round(e.clientY - rect.top);
+    awareness.setLocalStateField('user', {
+      id: userId.current,
+      name: 'Engineer (' + userId.current.substring(4) + ')',
+      color: userColor.current,
+      cursor: { x, y }
+    });
+  }, []);
+
+  const handlePointerLeave = useCallback(() => {
+    const awareness = collabRef.current?.getAwareness();
+    if (!awareness) return;
+    awareness.setLocalStateField('user', {
+      id: userId.current,
+      name: 'Engineer (' + userId.current.substring(4) + ')',
+      color: userColor.current,
+      cursor: null
+    });
+  }, []);
 
   return (
     <div className="relative w-screen h-screen bg-slate-950 flex flex-col font-sans select-none overflow-hidden">
@@ -537,7 +562,11 @@ export default function WhiteboardCanvas({ roomId }: Props) {
       </div>
 
       {/* React Flow Real-Time Architecture Canvas */}
-      <div className="flex-1 w-full h-full relative">
+      <div
+        className="flex-1 w-full h-full relative"
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
