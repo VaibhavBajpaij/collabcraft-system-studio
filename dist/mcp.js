@@ -5,6 +5,14 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
+};
 var __commonJS = (cb, mod) => function __require() {
   try {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
@@ -32,6 +40,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // node_modules/ajv/dist/compile/codegen/code.js
 var require_code = __commonJS({
@@ -3262,8 +3271,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path2) {
-      let input = path2;
+    function removeDotSegments(path4) {
+      let input = path4;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3337,11 +3346,11 @@ var require_utils = __commonJS({
       }
       return output.join("");
     }
-    function removeDotSegmentsRelative(path2) {
-      if (path2 === "" || path2[0] === "/") {
-        return removeDotSegments(path2);
+    function removeDotSegmentsRelative(path4) {
+      if (path4 === "" || path4[0] === "/") {
+        return removeDotSegments(path4);
       }
-      const segments = path2.split("/");
+      const segments = path4.split("/");
       const last2 = segments.length - 1;
       const output = [];
       let trailingDirectory = false;
@@ -3704,8 +3713,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path2 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path2 && path2 !== "/" ? path2 : void 0;
+        const path4 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path4 && path4 !== "/" ? path4 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -7242,16 +7251,754 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs2, exportName) {
+    function addFormats(ajv, list, fs7, exportName) {
       var _a3;
       var _b;
       (_a3 = (_b = ajv.opts.code).formats) !== null && _a3 !== void 0 ? _a3 : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs2[f]);
+        ajv.addFormat(f, fs7[f]);
     }
     module2.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.default = formatsPlugin;
+  }
+});
+
+// node_modules/is-docker/index.js
+function hasDockerEnv() {
+  try {
+    import_node_fs.default.statSync("/.dockerenv");
+    return true;
+  } catch {
+    return false;
+  }
+}
+function hasDockerCGroup() {
+  try {
+    return import_node_fs.default.readFileSync("/proc/self/cgroup", "utf8").includes("docker");
+  } catch {
+    return false;
+  }
+}
+function isDocker() {
+  if (isDockerCached === void 0) {
+    isDockerCached = hasDockerEnv() || hasDockerCGroup();
+  }
+  return isDockerCached;
+}
+var import_node_fs, isDockerCached;
+var init_is_docker = __esm({
+  "node_modules/is-docker/index.js"() {
+    import_node_fs = __toESM(require("node:fs"), 1);
+  }
+});
+
+// node_modules/is-inside-container/index.js
+function isInsideContainer() {
+  if (cachedResult === void 0) {
+    cachedResult = hasContainerEnv() || isDocker();
+  }
+  return cachedResult;
+}
+var import_node_fs2, cachedResult, hasContainerEnv;
+var init_is_inside_container = __esm({
+  "node_modules/is-inside-container/index.js"() {
+    import_node_fs2 = __toESM(require("node:fs"), 1);
+    init_is_docker();
+    hasContainerEnv = () => {
+      try {
+        import_node_fs2.default.statSync("/run/.containerenv");
+        return true;
+      } catch {
+        return false;
+      }
+    };
+  }
+});
+
+// node_modules/is-wsl/index.js
+var import_node_process2, import_node_os, import_node_fs3, isWsl, is_wsl_default;
+var init_is_wsl = __esm({
+  "node_modules/is-wsl/index.js"() {
+    import_node_process2 = __toESM(require("node:process"), 1);
+    import_node_os = __toESM(require("node:os"), 1);
+    import_node_fs3 = __toESM(require("node:fs"), 1);
+    init_is_inside_container();
+    isWsl = () => {
+      if (import_node_process2.default.platform !== "linux") {
+        return false;
+      }
+      if (import_node_os.default.release().toLowerCase().includes("microsoft")) {
+        if (isInsideContainer()) {
+          return false;
+        }
+        return true;
+      }
+      try {
+        if (import_node_fs3.default.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft")) {
+          return !isInsideContainer();
+        }
+      } catch {
+      }
+      if (import_node_fs3.default.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || import_node_fs3.default.existsSync("/run/WSL")) {
+        return !isInsideContainer();
+      }
+      return false;
+    };
+    is_wsl_default = import_node_process2.default.env.__IS_WSL_TEST__ ? isWsl : isWsl();
+  }
+});
+
+// node_modules/powershell-utils/index.js
+var import_node_process3, import_node_buffer, import_node_util, import_node_child_process, execFile, powerShellPath, argumentsPrefix, encodeCommand, escapeArgument, createArguments, createExecFileOptions, executePowerShell;
+var init_powershell_utils = __esm({
+  "node_modules/powershell-utils/index.js"() {
+    import_node_process3 = __toESM(require("node:process"), 1);
+    import_node_buffer = require("node:buffer");
+    import_node_util = require("node:util");
+    import_node_child_process = __toESM(require("node:child_process"), 1);
+    execFile = (0, import_node_util.promisify)(import_node_child_process.default.execFile);
+    powerShellPath = () => `${import_node_process3.default.env.SYSTEMROOT || import_node_process3.default.env.windir || String.raw`C:\Windows`}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+    argumentsPrefix = [
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-EncodedCommand"
+    ];
+    encodeCommand = (command) => import_node_buffer.Buffer.from(command, "utf16le").toString("base64");
+    escapeArgument = (value) => `'${String(value).replaceAll(/['‘’‚‛]/g, (match) => match + match)}'`;
+    createArguments = (command) => [...argumentsPrefix, encodeCommand(command)];
+    createExecFileOptions = (options) => ({
+      encoding: "utf8",
+      ...options,
+      shell: false
+    });
+    executePowerShell = async (command, options = {}) => {
+      const {
+        powerShellPath: psPath,
+        ...execFileOptions
+      } = options;
+      return execFile(
+        psPath ?? powerShellPath(),
+        createArguments(command),
+        createExecFileOptions(execFileOptions)
+      );
+    };
+    executePowerShell.argumentsPrefix = argumentsPrefix;
+    executePowerShell.encodeCommand = encodeCommand;
+    executePowerShell.escapeArgument = escapeArgument;
+    executePowerShell.createArguments = createArguments;
+  }
+});
+
+// node_modules/wsl-utils/utilities.js
+function parseMountPointFromConfig(content) {
+  for (const line of content.split("\n")) {
+    if (/^\s*#/.test(line)) {
+      continue;
+    }
+    const match = /^\s*root\s*=\s*(?<mountPoint>"[^"]*"|'[^']*'|[^#]*)/.exec(line);
+    if (!match) {
+      continue;
+    }
+    return match.groups.mountPoint.trim().replaceAll(/^["']|["']$/g, "");
+  }
+}
+var init_utilities = __esm({
+  "node_modules/wsl-utils/utilities.js"() {
+  }
+});
+
+// node_modules/wsl-utils/index.js
+var import_node_path, import_node_util2, import_node_child_process2, import_promises, execFile2, wslDrivesMountPoint, powerShellPathFromWsl, powerShellPath2, canAccessPowerShellPromise, canAccessPowerShell, wslDefaultBrowser, isUrl, convertPath, convertWslPathToWindows;
+var init_wsl_utils = __esm({
+  "node_modules/wsl-utils/index.js"() {
+    import_node_path = __toESM(require("node:path"), 1);
+    import_node_util2 = require("node:util");
+    import_node_child_process2 = __toESM(require("node:child_process"), 1);
+    import_promises = __toESM(require("node:fs/promises"), 1);
+    init_is_wsl();
+    init_powershell_utils();
+    init_utilities();
+    init_is_wsl();
+    execFile2 = (0, import_node_util2.promisify)(import_node_child_process2.default.execFile);
+    wslDrivesMountPoint = /* @__PURE__ */ (() => {
+      const defaultMountPoint = "/mnt/";
+      let mountPoint;
+      return async function() {
+        if (mountPoint) {
+          return mountPoint;
+        }
+        const configFilePath = "/etc/wsl.conf";
+        let isConfigFileExists = false;
+        try {
+          await import_promises.default.access(configFilePath, import_promises.constants.F_OK);
+          isConfigFileExists = true;
+        } catch {
+        }
+        if (!isConfigFileExists) {
+          return defaultMountPoint;
+        }
+        const configContent = await import_promises.default.readFile(configFilePath, { encoding: "utf8" });
+        const parsedMountPoint = parseMountPointFromConfig(configContent);
+        if (parsedMountPoint === void 0) {
+          return defaultMountPoint;
+        }
+        mountPoint = parsedMountPoint;
+        mountPoint = mountPoint.endsWith("/") ? mountPoint : `${mountPoint}/`;
+        return mountPoint;
+      };
+    })();
+    powerShellPathFromWsl = async () => {
+      const mountPoint = await wslDrivesMountPoint();
+      return `${mountPoint}c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe`;
+    };
+    powerShellPath2 = is_wsl_default ? powerShellPathFromWsl : powerShellPath;
+    canAccessPowerShell = async () => {
+      canAccessPowerShellPromise ??= (async () => {
+        try {
+          const psPath = await powerShellPath2();
+          await import_promises.default.access(psPath, import_promises.constants.X_OK);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      return canAccessPowerShellPromise;
+    };
+    wslDefaultBrowser = async () => {
+      const psPath = await powerShellPath2();
+      const command = String.raw`(Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice").ProgId`;
+      const { stdout } = await executePowerShell(command, {
+        powerShellPath: psPath,
+        cwd: import_node_path.default.dirname(psPath)
+      });
+      return stdout.trim();
+    };
+    isUrl = (path4) => /^[a-z]+:\/\//i.test(path4);
+    convertPath = async (flag, path4) => {
+      const wslpathArguments = path4.startsWith("-") ? [flag, "--", path4] : [flag, path4];
+      try {
+        const { stdout } = await execFile2("wslpath", wslpathArguments, { encoding: "utf8" });
+        return stdout.replace(/\r?\n$/, "") || path4;
+      } catch {
+        return path4;
+      }
+    };
+    convertWslPathToWindows = async (paths) => {
+      const isBatch = Array.isArray(paths);
+      const pathArray = isBatch ? paths : [paths];
+      const results = await Promise.all(pathArray.map((path4) => isUrl(path4) ? path4 : convertPath("-aw", path4)));
+      return isBatch ? results : results[0];
+    };
+  }
+});
+
+// node_modules/define-lazy-prop/index.js
+function defineLazyProperty(object3, propertyName, valueGetter) {
+  const define = (value) => Object.defineProperty(object3, propertyName, { value, enumerable: true, writable: true });
+  Object.defineProperty(object3, propertyName, {
+    configurable: true,
+    enumerable: true,
+    get() {
+      const result = valueGetter();
+      define(result);
+      return result;
+    },
+    set(value) {
+      define(value);
+    }
+  });
+  return object3;
+}
+var init_define_lazy_prop = __esm({
+  "node_modules/define-lazy-prop/index.js"() {
+  }
+});
+
+// node_modules/default-browser-id/index.js
+async function defaultBrowserId() {
+  if (import_node_process4.default.platform !== "darwin") {
+    throw new Error("macOS only");
+  }
+  const { stdout } = await execFileAsync("defaults", ["read", "com.apple.LaunchServices/com.apple.launchservices.secure", "LSHandlers"]);
+  const match = /LSHandlerRoleAll = "(?!-)(?<id>[^"]+?)";\s+?LSHandlerURLScheme = (?:http|https);/.exec(stdout);
+  const browserId = match?.groups.id ?? "com.apple.Safari";
+  if (browserId === "com.apple.safari") {
+    return "com.apple.Safari";
+  }
+  return browserId;
+}
+var import_node_util3, import_node_process4, import_node_child_process3, execFileAsync;
+var init_default_browser_id = __esm({
+  "node_modules/default-browser-id/index.js"() {
+    import_node_util3 = require("node:util");
+    import_node_process4 = __toESM(require("node:process"), 1);
+    import_node_child_process3 = require("node:child_process");
+    execFileAsync = (0, import_node_util3.promisify)(import_node_child_process3.execFile);
+  }
+});
+
+// node_modules/run-applescript/index.js
+async function runAppleScript(script, { humanReadableOutput = true, signal } = {}) {
+  if (import_node_process5.default.platform !== "darwin") {
+    throw new Error("macOS only");
+  }
+  const outputArguments = humanReadableOutput ? [] : ["-ss"];
+  const execOptions = {};
+  if (signal) {
+    execOptions.signal = signal;
+  }
+  const { stdout } = await execFileAsync2("osascript", ["-e", script, outputArguments], execOptions);
+  return stdout.trim();
+}
+var import_node_process5, import_node_util4, import_node_child_process4, execFileAsync2;
+var init_run_applescript = __esm({
+  "node_modules/run-applescript/index.js"() {
+    import_node_process5 = __toESM(require("node:process"), 1);
+    import_node_util4 = require("node:util");
+    import_node_child_process4 = require("node:child_process");
+    execFileAsync2 = (0, import_node_util4.promisify)(import_node_child_process4.execFile);
+  }
+});
+
+// node_modules/bundle-name/index.js
+async function bundleName(bundleId) {
+  if (typeof bundleId !== "string") {
+    throw new TypeError("Expected a string bundle identifier");
+  }
+  if (!bundleIdentifierPattern.test(bundleId)) {
+    throw new TypeError(`Invalid bundle identifier: ${JSON.stringify(bundleId)}`);
+  }
+  return runAppleScript(`tell application "Finder" to set app_path to application file id "${bundleId}" as string
+tell application "System Events" to get value of property list item "CFBundleName" of property list file (app_path & ":Contents:Info.plist")`);
+}
+var bundleIdentifierPattern;
+var init_bundle_name = __esm({
+  "node_modules/bundle-name/index.js"() {
+    init_run_applescript();
+    bundleIdentifierPattern = /^[^\n\r"\\]+$/u;
+  }
+});
+
+// node_modules/default-browser/windows.js
+async function defaultBrowser(_execFileAsync = execFileAsync3) {
+  const regPath = `${import_node_process6.default.env.SYSTEMROOT ?? import_node_process6.default.env.windir ?? "C:\\Windows"}\\System32\\reg.exe`;
+  const { stdout } = await _execFileAsync(regPath, [
+    "QUERY",
+    " HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice",
+    "/v",
+    "ProgId"
+  ]);
+  const match = /ProgId\s*REG_SZ\s*(?<id>\S+)/.exec(stdout);
+  if (!match) {
+    throw new UnknownBrowserError(`Cannot find Windows browser in stdout: ${JSON.stringify(stdout)}`);
+  }
+  const { id: id2 } = match.groups;
+  const dotIndex = id2.lastIndexOf(".");
+  const hyphenIndex = id2.lastIndexOf("-");
+  const baseIdByDot = dotIndex === -1 ? void 0 : id2.slice(0, dotIndex);
+  const baseIdByHyphen = hyphenIndex === -1 ? void 0 : id2.slice(0, hyphenIndex);
+  return windowsBrowserProgIds[id2] ?? windowsBrowserProgIds[baseIdByDot] ?? windowsBrowserProgIds[baseIdByHyphen] ?? { name: id2, id: id2 };
+}
+var import_node_process6, import_node_util5, import_node_child_process5, execFileAsync3, windowsBrowserProgIds, _windowsBrowserProgIdMap, UnknownBrowserError;
+var init_windows = __esm({
+  "node_modules/default-browser/windows.js"() {
+    import_node_process6 = __toESM(require("node:process"), 1);
+    import_node_util5 = require("node:util");
+    import_node_child_process5 = require("node:child_process");
+    execFileAsync3 = (0, import_node_util5.promisify)(import_node_child_process5.execFile);
+    windowsBrowserProgIds = {
+      MSEdgeHTM: { name: "Edge", id: "com.microsoft.edge" },
+      // The missing `L` is correct.
+      MSEdgeBHTML: { name: "Edge Beta", id: "com.microsoft.edge.beta" },
+      MSEdgeDHTML: { name: "Edge Dev", id: "com.microsoft.edge.dev" },
+      AppXq0fevzme2pys62n3e0fbqa7peapykr8v: { name: "Edge", id: "com.microsoft.edge.old" },
+      ChromeHTML: { name: "Chrome", id: "com.google.chrome" },
+      ChromeBHTML: { name: "Chrome Beta", id: "com.google.chrome.beta" },
+      ChromeDHTML: { name: "Chrome Dev", id: "com.google.chrome.dev" },
+      ChromiumHTM: { name: "Chromium", id: "org.chromium.Chromium" },
+      BraveHTML: { name: "Brave", id: "com.brave.Browser" },
+      BraveBHTML: { name: "Brave Beta", id: "com.brave.Browser.beta" },
+      BraveDHTML: { name: "Brave Dev", id: "com.brave.Browser.dev" },
+      BraveSSHTM: { name: "Brave Nightly", id: "com.brave.Browser.nightly" },
+      FirefoxURL: { name: "Firefox", id: "org.mozilla.firefox" },
+      OperaStable: { name: "Opera", id: "com.operasoftware.Opera" },
+      VivaldiHTM: { name: "Vivaldi", id: "com.vivaldi.Vivaldi" },
+      "IE.HTTP": { name: "Internet Explorer", id: "com.microsoft.ie" }
+    };
+    _windowsBrowserProgIdMap = new Map(Object.entries(windowsBrowserProgIds));
+    UnknownBrowserError = class extends Error {
+    };
+  }
+});
+
+// node_modules/default-browser/index.js
+async function defaultBrowser2() {
+  if (import_node_process7.default.platform === "darwin") {
+    const id2 = await defaultBrowserId();
+    const name = await bundleName(id2);
+    return { name, id: id2 };
+  }
+  if (import_node_process7.default.platform === "linux") {
+    const { stdout } = await execFileAsync4("xdg-mime", ["query", "default", "x-scheme-handler/http"]);
+    const id2 = stdout.trim();
+    const name = titleize(id2.replace(/.desktop$/, "").replace("-", " "));
+    return { name, id: id2 };
+  }
+  if (import_node_process7.default.platform === "win32") {
+    return defaultBrowser();
+  }
+  throw new Error("Only macOS, Linux, and Windows are supported");
+}
+var import_node_util6, import_node_process7, import_node_child_process6, execFileAsync4, titleize;
+var init_default_browser = __esm({
+  "node_modules/default-browser/index.js"() {
+    import_node_util6 = require("node:util");
+    import_node_process7 = __toESM(require("node:process"), 1);
+    import_node_child_process6 = require("node:child_process");
+    init_default_browser_id();
+    init_bundle_name();
+    init_windows();
+    init_windows();
+    execFileAsync4 = (0, import_node_util6.promisify)(import_node_child_process6.execFile);
+    titleize = (string3) => string3.toLowerCase().replaceAll(/(?:^|\s|-)\S/g, (x) => x.toUpperCase());
+  }
+});
+
+// node_modules/is-in-ssh/index.js
+var import_node_process8, isInSsh, is_in_ssh_default;
+var init_is_in_ssh = __esm({
+  "node_modules/is-in-ssh/index.js"() {
+    import_node_process8 = __toESM(require("node:process"), 1);
+    isInSsh = Boolean(import_node_process8.default.env.SSH_CONNECTION || import_node_process8.default.env.SSH_CLIENT || import_node_process8.default.env.SSH_TTY);
+    is_in_ssh_default = isInSsh;
+  }
+});
+
+// node_modules/open/index.js
+var open_exports = {};
+__export(open_exports, {
+  apps: () => apps,
+  default: () => open_default,
+  openApp: () => openApp
+});
+function detectArchBinary(binary) {
+  if (typeof binary === "string" || Array.isArray(binary)) {
+    return binary;
+  }
+  const { [arch]: archBinary } = binary;
+  if (!archBinary) {
+    throw new Error(`${arch} is not supported`);
+  }
+  return archBinary;
+}
+function detectPlatformBinary({ [platform]: platformBinary }, { wsl } = {}) {
+  if (wsl && is_wsl_default) {
+    return detectArchBinary(wsl);
+  }
+  if (!platformBinary) {
+    throw new Error(`${platform} is not supported`);
+  }
+  return detectArchBinary(platformBinary);
+}
+var import_node_process9, import_node_path2, import_node_url, import_node_child_process7, import_promises2, import_meta, fallbackAttemptSymbol, __dirname, localXdgOpenPath, platform, arch, tryEachApp, baseOpen, open2, openApp, apps, open_default;
+var init_open = __esm({
+  "node_modules/open/index.js"() {
+    import_node_process9 = __toESM(require("node:process"), 1);
+    import_node_path2 = __toESM(require("node:path"), 1);
+    import_node_url = require("node:url");
+    import_node_child_process7 = __toESM(require("node:child_process"), 1);
+    import_promises2 = __toESM(require("node:fs/promises"), 1);
+    init_wsl_utils();
+    init_powershell_utils();
+    init_define_lazy_prop();
+    init_default_browser();
+    init_is_inside_container();
+    init_is_in_ssh();
+    import_meta = {};
+    fallbackAttemptSymbol = /* @__PURE__ */ Symbol("fallbackAttempt");
+    __dirname = import_meta.url ? import_node_path2.default.dirname((0, import_node_url.fileURLToPath)(import_meta.url)) : "";
+    localXdgOpenPath = import_node_path2.default.join(__dirname, "xdg-open");
+    ({ platform, arch } = import_node_process9.default);
+    tryEachApp = async (apps2, opener) => {
+      if (apps2.length === 0) {
+        return;
+      }
+      const errors = [];
+      for (const app of apps2) {
+        try {
+          return await opener(app);
+        } catch (error2) {
+          errors.push(error2);
+        }
+      }
+      throw new AggregateError(errors, "Failed to open in all supported apps");
+    };
+    baseOpen = async (options) => {
+      options = {
+        wait: false,
+        background: false,
+        newInstance: false,
+        allowNonzeroExitCode: false,
+        ...options
+      };
+      const isFallbackAttempt = options[fallbackAttemptSymbol] === true;
+      delete options[fallbackAttemptSymbol];
+      if (Array.isArray(options.app)) {
+        return tryEachApp(options.app, (singleApp) => baseOpen({
+          ...options,
+          app: singleApp,
+          [fallbackAttemptSymbol]: true
+        }));
+      }
+      let { name: app, arguments: appArguments = [] } = options.app ?? {};
+      appArguments = [...appArguments];
+      if (Array.isArray(app)) {
+        return tryEachApp(app, (appName) => baseOpen({
+          ...options,
+          app: {
+            name: appName,
+            arguments: appArguments
+          },
+          [fallbackAttemptSymbol]: true
+        }));
+      }
+      if (app === "browser" || app === "browserPrivate") {
+        const ids = {
+          "com.google.chrome": "chrome",
+          "google-chrome.desktop": "chrome",
+          "com.brave.browser": "brave",
+          "org.mozilla.firefox": "firefox",
+          "firefox.desktop": "firefox",
+          "com.microsoft.msedge": "edge",
+          "com.microsoft.edge": "edge",
+          "com.microsoft.edgemac": "edge",
+          "microsoft-edge.desktop": "edge",
+          "com.apple.safari": "safari"
+        };
+        const flags = {
+          chrome: "--incognito",
+          brave: "--incognito",
+          firefox: "--private-window",
+          edge: "--inPrivate"
+          // Safari doesn't support private mode via command line
+        };
+        let browser;
+        if (is_wsl_default) {
+          const progId = await wslDefaultBrowser();
+          const browserInfo = _windowsBrowserProgIdMap.get(progId);
+          browser = browserInfo ?? {};
+        } else {
+          browser = await defaultBrowser2();
+        }
+        const browserId = browser.id?.toLowerCase();
+        if (Object.hasOwn(ids, browserId)) {
+          const browserName = ids[browserId];
+          if (app === "browserPrivate") {
+            if (browserName === "safari") {
+              throw new Error("Safari doesn't support opening in private mode via command line");
+            }
+            appArguments.push(flags[browserName]);
+          }
+          return baseOpen({
+            ...options,
+            app: {
+              name: apps[browserName],
+              arguments: appArguments
+            }
+          });
+        }
+        throw new Error(`${browser.name} is not supported as a default browser`);
+      }
+      let command;
+      const cliArguments = [];
+      const childProcessOptions = {};
+      let shouldUseWindowsInWsl = false;
+      if (is_wsl_default && !isInsideContainer() && !is_in_ssh_default && !app) {
+        shouldUseWindowsInWsl = await canAccessPowerShell();
+      }
+      if (platform === "darwin") {
+        command = "open";
+        if (options.wait) {
+          cliArguments.push("--wait-apps");
+        }
+        if (options.background) {
+          cliArguments.push("--background");
+        }
+        if (options.newInstance) {
+          cliArguments.push("--new");
+        }
+        if (app) {
+          cliArguments.push("-a", app);
+        }
+      } else if (platform === "win32" || shouldUseWindowsInWsl) {
+        command = await powerShellPath2();
+        cliArguments.push(...executePowerShell.argumentsPrefix);
+        if (!is_wsl_default) {
+          childProcessOptions.windowsVerbatimArguments = true;
+        }
+        if (is_wsl_default && options.target) {
+          options.target = await convertWslPathToWindows(options.target);
+        }
+        const encodedArguments = ["$ProgressPreference = 'SilentlyContinue';", "Start"];
+        if (options.wait) {
+          encodedArguments.push("-Wait");
+        }
+        if (app) {
+          encodedArguments.push(executePowerShell.escapeArgument(app));
+          if (options.target) {
+            appArguments.push(options.target);
+          }
+        } else if (options.target) {
+          encodedArguments.push(executePowerShell.escapeArgument(options.target));
+        }
+        if (appArguments.length > 0) {
+          appArguments = appArguments.map((argument) => executePowerShell.escapeArgument(argument));
+          encodedArguments.push("-ArgumentList", appArguments.join(","));
+        }
+        options.target = executePowerShell.encodeCommand(encodedArguments.join(" "));
+        if (!options.wait) {
+          childProcessOptions.stdio = "ignore";
+        }
+        if (is_wsl_default) {
+          childProcessOptions.cwd = import_node_path2.default.dirname(command);
+        }
+      } else {
+        if (app) {
+          command = app;
+        } else {
+          const isBundled = !__dirname || __dirname === "/";
+          let exeLocalXdgOpen = false;
+          try {
+            await import_promises2.default.access(localXdgOpenPath, import_promises2.constants.X_OK);
+            exeLocalXdgOpen = true;
+          } catch {
+          }
+          const useSystemXdgOpen = import_node_process9.default.versions.electron ?? (platform === "android" || isBundled || !exeLocalXdgOpen);
+          command = useSystemXdgOpen ? "xdg-open" : localXdgOpenPath;
+        }
+        if (appArguments.length > 0) {
+          cliArguments.push(...appArguments);
+        }
+        if (!options.wait) {
+          childProcessOptions.stdio = "ignore";
+          childProcessOptions.detached = true;
+        }
+      }
+      if (platform === "darwin" && appArguments.length > 0) {
+        cliArguments.push("--args", ...appArguments);
+      }
+      if (options.target) {
+        cliArguments.push(options.target);
+      }
+      const subprocess = import_node_child_process7.default.spawn(command, cliArguments, childProcessOptions);
+      if (options.wait) {
+        return new Promise((resolve2, reject) => {
+          subprocess.once("error", reject);
+          subprocess.once("close", (exitCode) => {
+            if (!options.allowNonzeroExitCode && exitCode !== 0) {
+              reject(new Error(`Exited with code ${exitCode}`));
+              return;
+            }
+            resolve2(subprocess);
+          });
+        });
+      }
+      if (isFallbackAttempt || platform === "win32" || shouldUseWindowsInWsl) {
+        return new Promise((resolve2, reject) => {
+          subprocess.once("error", reject);
+          subprocess.once("spawn", () => {
+            subprocess.once("close", (exitCode) => {
+              subprocess.off("error", reject);
+              if (isFallbackAttempt && exitCode !== 0) {
+                reject(new Error(`Exited with code ${exitCode}`));
+                return;
+              }
+              subprocess.unref();
+              resolve2(subprocess);
+            });
+          });
+        });
+      }
+      subprocess.unref();
+      return new Promise((resolve2, reject) => {
+        subprocess.once("error", reject);
+        subprocess.once("spawn", () => {
+          subprocess.off("error", reject);
+          resolve2(subprocess);
+        });
+      });
+    };
+    open2 = (target, options) => {
+      if (typeof target !== "string") {
+        throw new TypeError("Expected a `target`");
+      }
+      return baseOpen({
+        ...options,
+        target
+      });
+    };
+    openApp = (name, options) => {
+      if (typeof name !== "string" && !Array.isArray(name)) {
+        throw new TypeError("Expected a valid `name`");
+      }
+      const { arguments: appArguments = [] } = options ?? {};
+      if (appArguments !== void 0 && appArguments !== null && !Array.isArray(appArguments)) {
+        throw new TypeError("Expected `appArguments` as Array type");
+      }
+      return baseOpen({
+        ...options,
+        app: {
+          name,
+          arguments: appArguments
+        }
+      });
+    };
+    apps = {
+      browser: "browser",
+      browserPrivate: "browserPrivate"
+    };
+    defineLazyProperty(apps, "chrome", () => detectPlatformBinary({
+      darwin: "google chrome",
+      win32: "chrome",
+      // `chromium-browser` is the older deb package name used by Ubuntu/Debian before snap.
+      linux: ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]
+    }, {
+      wsl: {
+        ia32: "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+        x64: ["/mnt/c/Program Files/Google/Chrome/Application/chrome.exe", "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"]
+      }
+    }));
+    defineLazyProperty(apps, "brave", () => detectPlatformBinary({
+      darwin: "brave browser",
+      win32: "brave",
+      linux: ["brave-browser", "brave"]
+    }, {
+      wsl: {
+        ia32: "/mnt/c/Program Files (x86)/BraveSoftware/Brave-Browser/Application/brave.exe",
+        x64: ["/mnt/c/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe", "/mnt/c/Program Files (x86)/BraveSoftware/Brave-Browser/Application/brave.exe"]
+      }
+    }));
+    defineLazyProperty(apps, "firefox", () => detectPlatformBinary({
+      darwin: "firefox",
+      win32: String.raw`C:\Program Files\Mozilla Firefox\firefox.exe`,
+      linux: "firefox"
+    }, {
+      wsl: "/mnt/c/Program Files/Mozilla Firefox/firefox.exe"
+    }));
+    defineLazyProperty(apps, "edge", () => detectPlatformBinary({
+      darwin: "microsoft edge",
+      win32: "msedge",
+      linux: ["microsoft-edge", "microsoft-edge-dev"]
+    }, {
+      wsl: "/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+    }));
+    defineLazyProperty(apps, "safari", () => detectPlatformBinary({
+      darwin: "Safari"
+    }));
+    open_default = open2;
   }
 });
 
@@ -11007,6 +11754,14 @@ var require_ws = __commonJS({
   }
 });
 
+// src/mcp/server.ts
+var server_exports = {};
+__export(server_exports, {
+  inspectCodebase: () => inspectCodebase,
+  syncGraphToYjs: () => syncGraphToYjs
+});
+module.exports = __toCommonJS(server_exports);
+
 // node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
@@ -11244,10 +11999,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path2) {
-  if (!path2)
+function getElementAtPath(obj, path4) {
+  if (!path4)
     return obj;
-  return path2.reduce((acc, key) => acc?.[key], obj);
+  return path4.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys2 = Object.keys(promisesObj);
@@ -11587,11 +12342,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path2, issues) {
+function prefixIssues(path4, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path2);
+    iss.path.unshift(path4);
     return iss;
   });
 }
@@ -12049,16 +12804,16 @@ function flattenError(error2, mapper = (issue2) => issue2.message) {
 }
 function formatError(error2, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error3, path2 = []) => {
+  const processError = (error3, path4 = []) => {
     for (const issue2 of error3.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path4, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path4, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path4, ...issue2.path]);
       } else {
-        const fullpath = [...path2, ...issue2.path];
+        const fullpath = [...path4, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -21732,14 +22487,14 @@ var deepFreeze = (o) => {
 };
 
 // node_modules/lib0/function.js
-var callAll = (fs2, args2, i = 0) => {
+var callAll = (fs7, args2, i = 0) => {
   try {
-    for (; i < fs2.length; i++) {
-      fs2[i](...args2);
+    for (; i < fs7.length; i++) {
+      fs7[i](...args2);
     }
   } finally {
-    if (i < fs2.length) {
-      callAll(fs2, args2, i + 1);
+    if (i < fs7.length) {
+      callAll(fs7, args2, i + 1);
     }
   }
 };
@@ -23582,18 +24337,18 @@ var cleanupTransactions = (transactionCleanups, i) => {
       sortAndMergeDeleteSet(ds);
       transaction.afterState = getStateVector(transaction.doc.store);
       doc.emit("beforeObserverCalls", [transaction, doc]);
-      const fs2 = [];
+      const fs7 = [];
       transaction.changed.forEach(
-        (subs, itemtype) => fs2.push(() => {
+        (subs, itemtype) => fs7.push(() => {
           if (itemtype._item === null || !itemtype._item.deleted) {
             itemtype._callObserver(transaction, subs);
           }
         })
       );
-      fs2.push(() => {
+      fs7.push(() => {
         transaction.changedParentTypes.forEach((events, type) => {
           if (type._dEH.l.length > 0 && (type._item === null || !type._item.deleted)) {
-            fs2.push(() => {
+            fs7.push(() => {
               events = events.filter(
                 (event) => event.target._item === null || !event.target._item.deleted
               );
@@ -23606,14 +24361,14 @@ var cleanupTransactions = (transactionCleanups, i) => {
             });
           }
         });
-        fs2.push(() => doc.emit("afterTransaction", [transaction, doc]));
-        fs2.push(() => {
+        fs7.push(() => doc.emit("afterTransaction", [transaction, doc]));
+        fs7.push(() => {
           if (transaction._needFormattingCleanup) {
             cleanupYTextAfterTransaction(transaction);
           }
         });
       });
-      callAll(fs2, []);
+      callAll(fs7, []);
     } finally {
       if (doc.gc) {
         tryGcDeleteSet(ds, store, doc.gcFilter);
@@ -24196,10 +24951,10 @@ var YEvent = class {
   }
 };
 var getPathTo = (parent, child) => {
-  const path2 = [];
+  const path4 = [];
   while (child._item !== null && child !== parent) {
     if (child._item.parentSub !== null) {
-      path2.unshift(child._item.parentSub);
+      path4.unshift(child._item.parentSub);
     } else {
       let i = 0;
       let c = (
@@ -24212,12 +24967,12 @@ var getPathTo = (parent, child) => {
         }
         c = c.right;
       }
-      path2.unshift(i);
+      path4.unshift(i);
     }
     child = /** @type {AbstractType<any>} */
     child._item.parent;
   }
-  return path2;
+  return path4;
 };
 var warnPrematureAccess = () => {
   warn("Invalid access: Add Yjs type to a document before reading data.");
@@ -29137,9 +29892,9 @@ var WebsocketProvider = class extends ObservableV2 {
 };
 
 // src/mcp/server.ts
-var fs = __toESM(require("fs"));
-var path = __toESM(require("path"));
-var import_open = __toESM(require("open"));
+var fs6 = __toESM(require("fs"));
+var path3 = __toESM(require("path"));
+var import_child_process = require("child_process");
 
 // src/lib/copilot/architectureGenerator.ts
 function generateArchitectureFromPrompt(prompt) {
@@ -29448,6 +30203,28 @@ services:
 
 // src/mcp/server.ts
 var APP_BASE_URL = process.env.COLLABCRAFT_URL || "https://collabcraft-system-studio.vercel.app";
+var WS_RELAY_URL = process.env.COLLABCRAFT_WS_URL || process.env.NEXT_PUBLIC_WS_ENDPOINT || "wss://demos.yjs.dev/ws";
+async function launchBrowser(url) {
+  try {
+    const openPkg = await Promise.resolve().then(() => (init_open(), open_exports)).catch(() => null);
+    if (openPkg && typeof openPkg.default === "function") {
+      await openPkg.default(url);
+      return;
+    }
+  } catch {
+  }
+  const platform2 = process.platform;
+  let cmd = "";
+  if (platform2 === "darwin") {
+    cmd = `open "${url}"`;
+  } else if (platform2 === "win32") {
+    cmd = `start "" "${url}"`;
+  } else {
+    cmd = `xdg-open "${url}"`;
+  }
+  (0, import_child_process.exec)(cmd, () => {
+  });
+}
 var server = new Server(
   {
     name: "collabcraft-mcp",
@@ -29542,7 +30319,7 @@ async function syncGraphToYjs(roomName, nodes, edges) {
     const sanitizedRoom = "collabcraft-" + roomName.replace(/[^a-zA-Z0-9-_]/g, "-");
     const WebSocket2 = require_ws();
     const wsProvider = new WebsocketProvider(
-      "wss://demos.yjs.dev/ws",
+      WS_RELAY_URL,
       sanitizedRoom,
       doc,
       { WebSocketPolyfill: WebSocket2 }
@@ -29569,6 +30346,88 @@ async function syncGraphToYjs(roomName, nodes, edges) {
     }, 2e3);
   });
 }
+function inspectCodebase(targetDir) {
+  const discoveredComponents = [];
+  const composeFiles = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
+  for (const cf of composeFiles) {
+    const p = path3.join(targetDir, cf);
+    if (fs6.existsSync(p)) {
+      const content = fs6.readFileSync(p, "utf-8").toLowerCase();
+      if (content.includes("redis")) discoveredComponents.push({ name: "Redis Cache Tier", type: "cache", tech: "Redis 7 Cluster" });
+      if (content.includes("postgres")) discoveredComponents.push({ name: "PostgreSQL Primary Ledger", type: "database", tech: "Postgres 16 Multi-AZ" });
+      if (content.includes("kafka")) discoveredComponents.push({ name: "Apache Kafka Event Bus", type: "queue", tech: "Kafka 3.6 (KRaft)" });
+      if (content.includes("rabbitmq")) discoveredComponents.push({ name: "RabbitMQ Message Broker", type: "queue", tech: "RabbitMQ AMQP" });
+      if (content.includes("mongo")) discoveredComponents.push({ name: "MongoDB Document Store", type: "database", tech: "MongoDB 7" });
+      if (content.includes("nginx") || content.includes("gateway") || content.includes("traefik") || content.includes("envoy")) {
+        discoveredComponents.push({ name: "Edge API Gateway", type: "gateway", tech: "Reverse Proxy / Ingress" });
+      }
+    }
+  }
+  const pkgPath = path3.join(targetDir, "package.json");
+  if (fs6.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs6.readFileSync(pkgPath, "utf-8"));
+      const deps = { ...pkg.dependencies || {}, ...pkg.devDependencies || {} };
+      if (deps["next"]) discoveredComponents.push({ name: `${pkg.name || "Web Application"} (Next.js)`, type: "service", tech: "Next.js 15 App Router" });
+      if (deps["express"] || deps["fastify"] || deps["@nestjs/core"]) discoveredComponents.push({ name: "REST API Gateway Service", type: "service", tech: "Node.js REST API" });
+      if (deps["@xyflow/react"] || deps["reactflow"]) discoveredComponents.push({ name: "Interactive Topology Canvas", type: "service", tech: "React Flow CAD" });
+      if (deps["yjs"] || deps["y-websocket"]) discoveredComponents.push({ name: "Yjs CRDT Collaboration Relay", type: "queue", tech: "Yjs WebSocket Server" });
+      if (deps["@prisma/client"] || deps["prisma"]) discoveredComponents.push({ name: "Prisma ORM Database Client", type: "database", tech: "Prisma Data Layer" });
+    } catch {
+    }
+  }
+  const reqPath = path3.join(targetDir, "requirements.txt");
+  const pyprojectPath = path3.join(targetDir, "pyproject.toml");
+  if (fs6.existsSync(reqPath) || fs6.existsSync(pyprojectPath)) {
+    const pyContent = (fs6.existsSync(reqPath) ? fs6.readFileSync(reqPath, "utf-8") : "") + (fs6.existsSync(pyprojectPath) ? fs6.readFileSync(pyprojectPath, "utf-8") : "");
+    const lower = pyContent.toLowerCase();
+    if (lower.includes("fastapi")) discoveredComponents.push({ name: "FastAPI Backend Service", type: "service", tech: "Python 3.12 / FastAPI" });
+    if (lower.includes("django")) discoveredComponents.push({ name: "Django Core Service", type: "service", tech: "Python / Django" });
+    if (lower.includes("celery")) discoveredComponents.push({ name: "Celery Distributed Task Queue", type: "queue", tech: "Celery Worker" });
+    if (lower.includes("langchain") || lower.includes("langgraph")) discoveredComponents.push({ name: "AI Agent Reasoning Engine", type: "service", tech: "LangGraph / LangChain" });
+    if (lower.includes("qdrant") || lower.includes("chromadb") || lower.includes("pinecone")) {
+      discoveredComponents.push({ name: "Vector Search Database", type: "database", tech: "Vector Embeddings DB" });
+    }
+  }
+  const prismaPath = path3.join(targetDir, "prisma", "schema.prisma");
+  if (fs6.existsSync(prismaPath)) {
+    const prismaContent = fs6.readFileSync(prismaPath, "utf-8").toLowerCase();
+    if (prismaContent.includes('provider = "postgresql"')) {
+      discoveredComponents.push({ name: "PostgreSQL Database Layer", type: "database", tech: "Postgres via Prisma" });
+    } else if (prismaContent.includes('provider = "mysql"')) {
+      discoveredComponents.push({ name: "MySQL Transactional DB", type: "database", tech: "MySQL 8.0" });
+    } else if (prismaContent.includes('provider = "sqlite"')) {
+      discoveredComponents.push({ name: "SQLite Embedded Store", type: "database", tech: "SQLite 3" });
+    }
+  }
+  const pomPath = path3.join(targetDir, "pom.xml");
+  const gradlePath = path3.join(targetDir, "build.gradle");
+  if (fs6.existsSync(pomPath) || fs6.existsSync(gradlePath)) {
+    const jvmContent = (fs6.existsSync(pomPath) ? fs6.readFileSync(pomPath, "utf-8") : "") + (fs6.existsSync(gradlePath) ? fs6.readFileSync(gradlePath, "utf-8") : "");
+    if (jvmContent.includes("spring-cloud-starter-gateway")) discoveredComponents.push({ name: "API Gateway Service", type: "gateway", tech: "Spring Cloud Gateway / Netty" });
+    if (jvmContent.includes("spring-boot-starter-data-redis")) discoveredComponents.push({ name: "Redis Distributed Store", type: "cache", tech: "Redis Reactive" });
+    if (jvmContent.includes("spring-boot")) discoveredComponents.push({ name: "Core Business Microservice", type: "service", tech: "Spring Boot 3 / Java 21" });
+  }
+  const k8sDir = path3.join(targetDir, "k8s");
+  const helmDir = path3.join(targetDir, "helm");
+  if (fs6.existsSync(k8sDir) || fs6.existsSync(helmDir)) {
+    discoveredComponents.push({ name: "Kubernetes Cluster Ingress", type: "gateway", tech: "K8s Ingress Controller" });
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const uniqueComponents = discoveredComponents.filter((c) => {
+    if (seen.has(c.name)) return false;
+    seen.add(c.name);
+    return true;
+  });
+  if (uniqueComponents.length === 0) {
+    uniqueComponents.push(
+      { name: "Edge API Gateway", type: "gateway", tech: "TLS Termination & Ingress" },
+      { name: "Core Application Service", type: "service", tech: "Runtime Service" },
+      { name: "Persistent Database Cluster", type: "database", tech: "Relational DB" }
+    );
+  }
+  return uniqueComponents;
+}
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args2 } = request.params;
   try {
@@ -29580,7 +30439,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await syncGraphToYjs(roomName, topology.nodes, topology.edges);
       const liveUrl = `${APP_BASE_URL}/?room=${roomName}`;
       if (shouldOpen) {
-        (0, import_open.default)(liveUrl).catch(() => {
+        launchBrowser(liveUrl).catch(() => {
         });
       }
       return {
@@ -29600,51 +30459,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
     if (name === "inspect_repository_architecture") {
-      const targetDir = path.resolve(String(args2?.repoPath || process.cwd()));
+      const targetDir = path3.resolve(String(args2?.repoPath || process.cwd()));
       const shouldOpen = args2?.openBrowser !== false;
-      const discoveredComponents = [];
-      const composeFiles = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
-      for (const cf of composeFiles) {
-        const p = path.join(targetDir, cf);
-        if (fs.existsSync(p)) {
-          const content = fs.readFileSync(p, "utf-8");
-          if (content.includes("redis")) discoveredComponents.push({ name: "Redis Cache", type: "cache", tech: "Redis 7" });
-          if (content.includes("postgres")) discoveredComponents.push({ name: "PostgreSQL Database", type: "database", tech: "Postgres 16" });
-          if (content.includes("kafka")) discoveredComponents.push({ name: "Apache Kafka", type: "queue", tech: "Kafka 3.6" });
-          if (content.includes("rabbitmq")) discoveredComponents.push({ name: "RabbitMQ Broker", type: "queue", tech: "RabbitMQ" });
-          if (content.includes("mongo")) discoveredComponents.push({ name: "MongoDB Cluster", type: "database", tech: "MongoDB" });
-          if (content.includes("nginx") || content.includes("gateway")) discoveredComponents.push({ name: "API Gateway", type: "gateway", tech: "Reverse Proxy" });
-        }
-      }
-      const pkgPath = path.join(targetDir, "package.json");
-      if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-        const deps = { ...pkg.dependencies || {}, ...pkg.devDependencies || {} };
-        if (deps["next"]) discoveredComponents.push({ name: `${pkg.name || "Next.js App"} (Frontend)`, type: "service", tech: "Next.js 15" });
-        if (deps["express"] || deps["fastify"] || deps["@nestjs/core"]) discoveredComponents.push({ name: "Node.js REST API", type: "service", tech: "Node.js / Express" });
-        if (deps["@xyflow/react"] || deps["reactflow"]) discoveredComponents.push({ name: "React Flow CAD View", type: "service", tech: "React Flow" });
-        if (deps["yjs"]) discoveredComponents.push({ name: "Yjs CRDT Synchronization Relay", type: "queue", tech: "Yjs WebSocket" });
-      }
-      const pomPath = path.join(targetDir, "pom.xml");
-      if (fs.existsSync(pomPath)) {
-        const pomContent = fs.readFileSync(pomPath, "utf-8");
-        if (pomContent.includes("spring-cloud-starter-gateway")) discoveredComponents.push({ name: "NexusGate Core", type: "gateway", tech: "Spring Cloud Gateway / Netty" });
-        if (pomContent.includes("spring-boot-starter-data-redis")) discoveredComponents.push({ name: "Redis Limiter Store", type: "cache", tech: "Redis Reactive" });
-      }
-      if (discoveredComponents.length === 0) {
-        discoveredComponents.push(
-          { name: "Application Gateway", type: "gateway", tech: "Edge Ingress" },
-          { name: "Core Application Service", type: "service", tech: "Service Runtime" },
-          { name: "Persistence Store", type: "database", tech: "Database" }
-        );
-      }
+      const discoveredComponents = inspectCodebase(targetDir);
       const prompt = `System architecture with ${discoveredComponents.map((c) => c.name).join(", ")}`;
-      const roomName = "repo-" + path.basename(targetDir).replace(/[^a-zA-Z0-9-_]/g, "-");
+      const roomName = "repo-" + path3.basename(targetDir).replace(/[^a-zA-Z0-9-_]/g, "-");
       const topology = generateArchitectureFromPrompt(prompt);
       await syncGraphToYjs(roomName, topology.nodes, topology.edges);
       const liveUrl = `${APP_BASE_URL}/?room=${roomName}`;
       if (shouldOpen) {
-        (0, import_open.default)(liveUrl).catch(() => {
+        launchBrowser(liveUrl).catch(() => {
         });
       }
       return {
@@ -29664,18 +30488,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
     if (name === "detect_architecture_drift") {
-      const targetDir = path.resolve(String(args2?.repoPath || process.cwd()));
+      const targetDir = path3.resolve(String(args2?.repoPath || process.cwd()));
       const findings = [];
-      const hasDocker = fs.existsSync(path.join(targetDir, "docker-compose.yml")) || fs.existsSync(path.join(targetDir, "docker-compose.yaml"));
+      const hasDocker = fs6.existsSync(path3.join(targetDir, "docker-compose.yml")) || fs6.existsSync(path3.join(targetDir, "docker-compose.yaml"));
       if (!hasDocker) {
-        findings.push("\u26A0\uFE0F **Missing Infrastructure-as-Code**: No `docker-compose.yml` detected in repository root. Local multi-service reproducibility is compromised.");
+        findings.push("\u26A0\uFE0F **HIGH RISK \u2014 Missing Infrastructure-as-Code**: No `docker-compose.yml` detected in repository root. Local multi-service reproducibility is compromised.");
+      } else {
+        findings.push("\u2705 **Infrastructure-as-Code**: Valid `docker-compose.yml` present for multi-service orchestration.");
       }
-      const hasEnvExample = fs.existsSync(path.join(targetDir, ".env.example"));
+      const hasEnvExample = fs6.existsSync(path3.join(targetDir, ".env.example"));
       if (!hasEnvExample) {
-        findings.push("\u26A0\uFE0F **Configuration Drift Risk**: Missing `.env.example`. Environment variable boundaries across services cannot be statically validated.");
+        findings.push("\u26A0\uFE0F **MEDIUM RISK \u2014 Configuration Drift Risk**: Missing `.env.example`. Environment variable boundaries across services cannot be statically validated.");
+      } else {
+        findings.push("\u2705 **Configuration Hygiene**: `.env.example` verified for service boundary validation.");
       }
-      findings.push("\u2705 **Edge Ingress**: Gateway rate limiting and timeout boundaries verified.");
-      findings.push("\u2705 **Event Sourcing**: Asynchronous queue decoupled from relational storage.");
+      const hasTsConfig = fs6.existsSync(path3.join(targetDir, "tsconfig.json"));
+      if (hasTsConfig) {
+        findings.push("\u2705 **Contract Verification**: Strict TypeScript type-checking active.");
+      } else {
+        findings.push("\u2139\uFE0F **Contract Risk**: No `tsconfig.json` detected; runtime payload schema drifts are not compile-time guarded.");
+      }
+      const hasTests = fs6.existsSync(path3.join(targetDir, "tests")) || fs6.existsSync(path3.join(targetDir, "__tests__"));
+      if (hasTests) {
+        findings.push("\u2705 **Automated Verification**: Test harness detected in repository root.");
+      } else {
+        findings.push("\u26A0\uFE0F **HIGH RISK \u2014 Quality Drift**: No automated test suites (`tests/`) found. Regression prevention is absent.");
+      }
       return {
         content: [
           {
@@ -29740,4 +30578,9 @@ async function run() {
 run().catch((err) => {
   console.error("Fatal error starting CollabCraft MCP Server:", err);
   process.exit(1);
+});
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  inspectCodebase,
+  syncGraphToYjs
 });

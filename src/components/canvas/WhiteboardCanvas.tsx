@@ -407,9 +407,17 @@ export default function WhiteboardCanvas({ roomId }: Props) {
           <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400 border border-slate-700 truncate max-w-[140px]">
             Room: {roomId}
           </span>
-          <span className="hidden lg:flex px-2.5 py-0.5 rounded-full text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 items-center gap-1.5 shadow-sm shadow-emerald-500/20 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            CRDT Active &bull; WebRTC + Yjs WebSocket
+          <span className={`hidden lg:flex px-2.5 py-0.5 rounded-full text-xs border items-center gap-1.5 shadow-sm shrink-0 ${
+            syncStatus === 'connected'
+              ? 'bg-emerald-950 text-emerald-400 border-emerald-800 shadow-emerald-500/20'
+              : syncStatus === 'connecting'
+              ? 'bg-amber-950 text-amber-400 border-amber-800 shadow-amber-500/20'
+              : 'bg-rose-950 text-rose-400 border-rose-800 shadow-rose-500/20'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              syncStatus === 'connected' ? 'bg-emerald-400 animate-pulse' : syncStatus === 'connecting' ? 'bg-amber-400 animate-ping' : 'bg-rose-400'
+            }`}></span>
+            {syncStatus === 'connected' ? 'CRDT Active • Yjs Relay Connected' : syncStatus === 'connecting' ? 'Connecting to Relay...' : 'Relay Disconnected (Local-First Active)'}
           </span>
           <span className="hidden xl:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-950 text-sky-400 border border-sky-800 shrink-0">
             <CheckCircle2 className="w-3 h-3 text-sky-400" />

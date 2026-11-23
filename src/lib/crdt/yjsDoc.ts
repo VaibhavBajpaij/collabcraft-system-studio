@@ -51,8 +51,15 @@ export class CollabDoc {
 
       // 3. WebSocket Central Relay Provider
       try {
+        const defaultWsEndpoint =
+          typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'ws://localhost:1234'
+            : 'wss://demos.yjs.dev/ws';
+
+        const wsEndpoint = process.env.NEXT_PUBLIC_WS_ENDPOINT || defaultWsEndpoint;
+
         this.wsProvider = new WebsocketProvider(
-          'wss://demos.yjs.dev/ws',
+          wsEndpoint,
           sanitizedRoom,
           this.doc,
           { connect: true }
